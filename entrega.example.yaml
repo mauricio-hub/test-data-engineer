@@ -1,0 +1,13 @@
+# make setup genera entrega.yaml con credenciales efímeras locales.
+candidato:
+  nombre_completo: TODO
+  email: TODO
+  horas_invertidas: 0
+postgres: {}
+objetos:
+  tabla_consumos: TODO
+  tabla_clientes: TODO
+  vista_analytics: TODO
+  tabla_auditoria: audit.runs
+no_implementado:
+  - S02-S07 pendientes de autorización e implementación

@@ -1,0 +1,33 @@
+version: 1
+# Política efectiva: el código verifica cobertura del modelo antes de escribir.
+# Protección conservadora de textos; no se atribuye a Bia este mapa específico.
+tables:
+  core.clientes:
+    cliente_id: Interno
+    razon_social: Restringido-PII
+    nit: Restringido-PII
+    email_contacto: Restringido-PII
+    celular_contacto: Restringido-PII
+    direccion: Restringido-PII
+    ciudad: Restringido-PII
+    departamento: Restringido-PII
+    representante_legal: Restringido-PII
+    observaciones: Restringido-PII
+    observaciones_con_pii: Confidencial
+    source_sha256: Confidencial
+  core.clientes_cuarentena:
+    source_sha256: Confidencial
+    record_number: Interno
+    reason: Interno
+    payload: Restringido-PII
+  analytics.v_clientes:
+    cliente_id: Interno
+  audit.runs:
+    run_id: Interno
+    actor: Interno
+    operation: Interno
+    recorded_at: Interno
+    rows_read: Interno
+    rows_loaded: Interno
+    rows_rejected: Interno
+    result: Interno

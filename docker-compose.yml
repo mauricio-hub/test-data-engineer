@@ -1,0 +1,56 @@
+# Entorno local dedicado. make setup genera .local/ sin reutilizar secretos.
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: bia_datos
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets:
+      - postgres_password
+    ports:
+      - "127.0.0.1:${PG_PORT:-55432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bia_datos"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.2
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://localhost:9092
+    ports:
+      - "127.0.0.1:9092:9092"
+    volumes:
+      - rpdata:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "-X", "admin.hosts=127.0.0.1:9644"]
+      interval: 3s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  postgres_password:
+    file: .local/postgres_password
+
+volumes:
+  pgdata:
+  rpdata:

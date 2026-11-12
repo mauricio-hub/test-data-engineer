@@ -1,0 +1,12 @@
+.venv/
+.audit-venv/
+.local/
+.env
+entrega.yaml
+__pycache__/
+*.pyc
+out/
+logs/
+*.key
+
+data/

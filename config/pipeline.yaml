@@ -1,0 +1,13 @@
+# Configuración sin credenciales; el pipeline sigue pendiente de S02-S04.
+pipeline:
+  nombre: ingesta_consumos
+  batch_size: 5000
+  reintentos: 3
+origen:
+  tipo: archivos_locales
+  ruta: data
+destino:
+  tipo: postgres
+  credenciales_locales: .local/ingesta.json
+  rol_operativo: ingesta
+# La llave y el mecanismo PII se definirán en S02, fuera de la base y del paquete.

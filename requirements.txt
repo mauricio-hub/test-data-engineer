@@ -1,0 +1,7 @@
+# Dependencias directas necesarias; pip resuelve las transitivas de cryptography.
+# PyYAML: configuración/manifiesto y verificador suministrado.
+PyYAML==6.0.3
+# psycopg2: verificador suministrado y futura conexión del pipeline.
+psycopg2-binary==2.9.13
+# S02: cifrado autenticado Fernet; nunca se implementan primitivas propias.
+cryptography==50.0.2
