@@ -1,5 +1,9 @@
 # Matriz de trazabilidad
 
+## Estado consolidado al iniciar S06
+
+El responsable confirmó S01–S05 validadas en Windows: `make run` funcional, streaming con 3.795 eventos/33 alertas y resultados idénticos, y `make test` con 43 pruebas aprobadas. Esta es evidencia comunicada por el operador, no una nueva ejecución del agente en S06. Las incidencias y omisiones de registros anteriores son históricas y no deben leerse como el estado final de S05.
+
 Fuente: README §§4–9; Makefile; entrega.yaml; plantillas. La tabla describe cobertura prevista; la ejecución parcial de S01 figura al final. Los puntos pertenecen al bloque, no se atribuyen a cada fila.
 
 | Requisito / criterio | Evaluación | Spec | Prueba y evidencia prevista |
@@ -97,3 +101,14 @@ La documentación no permite asignar con precisión los 76 puntos automáticos a
 - Cambios limitados al plan S05: sin modificar productor, originales, Makefile, Compose, roles, tablas, llaves ni credenciales. Escritor S04 extraído dentro del mismo archivo conservando su algoritmo/interfaz; batch conserva valor por defecto de auditoría.
 - Ejecución real del punto de entrada `python tools/manage.py stream`: retorno 1 con motivo `dependency_missing`, cero eventos consumidos y sin crear alertas ficticias; evento seguro en 0,063 s. Consulta de solo lectura como auditor confirmó `operation=stream`, `result=failed`, `rows_read=0`, `rows_loaded=0`.
 - Pendiente: instalar la dependencia, ejecutar integración real y make stream dos veces. Comandos locales: `make setup`, `make up`, `make stream`, `make stream`, `make test`. Streaming no requiere llave PII: solo lee identificadores/límites y audita con la cuenta existente.
+
+## Evidencia de S06 — documentación e IaC sin despliegue
+
+- T21: `THREAT_MODEL.md` contiene flujo/fronteras de confianza y diez amenazas concretas que cubren STRIDE, probabilidad/impacto, referencias al código/tests, estado y riesgo residual. Mapeo de referencia Anexo A 2022 contrastado con extractos normativos indexados; no constituye certificación. La copia íntegra de la norma no se pudo descargar.
+- T30: cuatro documentos nuevos (SECURITY, THREAT_MODEL, AI_USAGE, RUNBOOK), diez ADRs actualizados y README ampliado. AI_USAGE incluye tres extractos textuales reales y el error de la firma end_offsets en consumer.py:152/158, con la regresión autospec. No se atribuyen a la IA las ejecuciones Windows comunicadas por el responsable.
+- T28 parcial: `infra/main.tf` describe un bucket privado/versionado con SSE-KMS y TLS, una llave con administración separada y tres roles con confianza explícita/distinta. S3 Get/Put/List y KMS Decrypt/GenerateDataKey están separados por prefijos y contexto de objeto, sin permisos de borrado o administración para roles operativos. Sin data sources AWS, usuarios/llaves IAM, cómputo ni integración S3 ficticia.
+- **T28 pendiente:** Terraform no está instalado, tampoco un parser HCL disponible. No se ejecutaron ni se declaran aprobados fmt/init/validate. Revisión manual de referencias/políticas no sustituye validación de proveedor. No se generó `.terraform.lock.hcl`; solo se versionará si init real lo genera. No hubo plan/apply ni llamadas AWS.
+- T34 parcial: enunciado original de README conservado íntegramente como prefijo de texto; instrucciones agregadas al final. Diez amenazas/diez ADRs y enlaces locales comprobados. `.gitignore` verificado con rutas sintéticas: data/, .terraform/, estados/backups, tfvars, planes y llaves ignorados; lockfile no ignorado.
+- Conservación: 72 archivos protegidos por hash, incluidos originales, entrega.yaml y tools/manage.py, sin cambios. No se modificó código funcional ni se ejecutaron objetivos Make, pruebas funcionales o servicios en esta fase.
+- Riesgos residuales: Kafka local sin autenticación/TLS; ACL Windows externa, llave Fernet sin rotación automática; tamaño/memoria no limitados globalmente; superusuario fuera de garantía de inmutabilidad; publicación no transaccional conjunta; S3 versionado sin WORM ni auditoría cloud. Descripción completa en documentos/ADR-010.
+- Pendientes S07: validación del manifiesto y su generador (no_implementado antiguo), ejecución final completa, revisión de secretos/historial, video y empaquetado. S06 no altera esos archivos ni declara entrega final completa.

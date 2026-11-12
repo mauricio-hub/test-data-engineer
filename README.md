@@ -453,3 +453,55 @@ extiendas algo en vivo. No hay algoritmos de pizarrón ni preguntas de trivia.
 Suerte. Y gracias por el tiempo — sabemos que tres días es mucho pedir.
 
 *Equipo de Data · Bia Energy*
+
+---
+
+## Instrucciones de la solución implementada
+
+El enunciado anterior se conserva como contrato. Solución: monolito modular Python, PostgreSQL y Redpanda locales. Extracción/normalización en Python y agregación mensual en SQL; clasificación, cifrado y cuarentena antes de persistir. No se generan facturas: se cargan las recibidas y se relacionan por frontera/periodo.
+
+### Preparación y ejecución
+
+Requisitos: Python >=3.11 (validado con 3.12), GNU Make, Docker con motor Linux y Compose v2. PostgreSQL del proyecto usa `127.0.0.1:55432`; Redpanda anuncia `127.0.0.1:9092`. Los datos de Bia deben estar en `data/`, sin modificaciones.
+
+```powershell
+make setup
+make up
+$env:BIA_PII_KEY_FILE = Read-Host 'Ruta de la llave externa existente'
+make run
+make run
+make stream
+make test
+make verificar
+make down
+```
+
+`make setup` prepara `.venv/` y credenciales locales; no genera la llave PII. Para una instalación nueva, seguir la creación explícita y custodia de llave de [docs/S02.md](docs/S02.md). Una llave usada no se sustituye para resolver errores. La llave y las credenciales no se imprimen ni se incluyen en Git. El manifiesto local de evaluación se trata por separado en S07.
+
+La cuenta operativa carga datos; analista consulta vistas sin PII y auditor consulta `audit.runs`. Consultar [SECURITY.md](SECURITY.md) para los permisos y controles verificables.
+
+### Resultados y decisiones
+
+- `out/consumo_mensual.csv`: suma de lecturas válidas en hora Colombia, tres decimales y horas válidas por frontera/mes.
+- `out/dq_report.json`: calidad del conjunto de entradas aceptadas; permanece estable al repetir.
+- `out/metrics.json`: trabajo de consumos/facturas del intento; escrituras incluyen actualizaciones. La relectura para calidad no se cuenta como nueva ingesta.
+- `out/alertas.json`: tres tipos de alerta, sin duplicados. `make stream` invoca el productor original y termina al consumir su rango de offsets. Ausencias evaluadas al cierre del día; requiere único productor durante el replay.
+- `logs/pipeline.log`: JSON técnico sin datos personales. Auditoría/logs cambian con cada intento; negocio, cuarentena y resultados reproducibles permanecen estables.
+
+Validación comunicada por el responsable en Windows: **43 pruebas aprobadas**, **3.795 eventos y 33 alertas** (22 de banda, 6 de ausencia, 5 retroactivas), con salidas idénticas en reejecuciones. Son resultados observados, no cantidades fijadas en el algoritmo ni una certificación del evaluador.
+
+Una corrección inválida ganadora conserva precedencia y deja hueco; no reaparece una versión antigua. Los componentes de facturación no participan en la suma de consumos. Interpretaciones y límites: [DECISIONS.md](DECISIONS.md), [THREAT_MODEL.md](THREAT_MODEL.md). Recuperación y diagnóstico: [RUNBOOK.md](RUNBOOK.md). Uso real de asistencia IA: [AI_USAGE.md](AI_USAGE.md).
+
+### Terraform y cierre pendiente
+
+`infra/main.tf` describe S3 privado/versionado, KMS y tres roles por prefijo. **No está desplegado ni integrado con el pipeline.** No crea cómputo, base o broker AWS. Solo validar localmente, sin ejecutar plan/apply:
+
+```powershell
+terraform -chdir=infra fmt -check
+terraform -chdir=infra init -backend=false -input=false
+terraform -chdir=infra validate
+```
+
+Terraform no está disponible en el entorno del agente: estos comandos quedan pendientes, no aprobados. Init necesita acceso al registro del proveedor; no necesita datos originales ni credenciales AWS para esta validación. No se ha generado un lockfile sin ejecutar init.
+
+S07 debe revisar manifiesto y generador (su `no_implementado` aún contiene una declaración antigua), ejecutar la validación final, preparar video y ZIP. No modificar manualmente secretos para corregir esa declaración. El paquete excluye datos, entornos, `.local/`, llaves y cachés/estados Terraform; conserva código y, si se genera, `.terraform.lock.hcl`.

@@ -1,58 +1,50 @@
-# S06 — Infraestructura descrita y documentación
+# S06 — Terraform y documentación técnica
 
-Estado: propuesto. Fase 6 no autorizada. Depende de la arquitectura implementada y de evidencias reales.
+Estado: alcance aprobado e implementado sin cambiar S01–S05. Terraform no está instalado: fmt/init/validate pendientes. No se desplegaron recursos.
 
 ## 1. Objetivo
-Explicar cómo funciona y se protege la solución, y describir su posible ejecución en AWS sin desplegar recursos.
+Entregar la descripción mínima AWS y documentación defendible de lo construido, sin inventar capacidades ni exposición de datos.
 
 ## 2. Qué vamos a construir
-- Terraform para S3, KMS y roles IAM: almacenamiento, gestión de llaves y permisos de AWS.
-- Documentos de amenazas, seguridad, decisiones, operación y uso real de IA.
-- Instrucciones de ejecución y un manifiesto que refleje lo construido.
+- Un archivo Terraform con bucket privado/versionado, bloqueo público, ownership sin ACL, SSE-KMS, TLS y tres roles IAM.
+- Separar protected/ (artefactos previamente cifrados), analytics/ (resultados sin PII) y audit/ (registros técnicos). Ingesta lee protected/ y escribe los tres; analista/auditor solo leen su prefijo.
+- Confianza STS en tres ARNs explícitos distintos; administración de KMS separada. Decrypt/GenerateDataKey limitados por acción, servicio S3 y contexto de prefijo. No incluir cuentas reales, usuarios IAM ni llaves de acceso.
+- Cuatro documentos nuevos, actualizar ADRs y añadir instrucciones al README sin cambiar el enunciado.
 
 ## 3. Cómo sabemos que funciona
-- **T28:** Terraform describe un bucket S3 cifrado y versionado, una llave KMS con política y roles IAM de menor privilegio equivalentes en responsabilidades a `ingesta`, `analista` y `auditor`. IAM no reemplaza permisos SQL. Se revisan acciones, recursos y acceso público. `terraform validate` pasa tras inicializar sin backend, es decir, sin almacenamiento remoto del estado.
-- **T21:** `THREAT_MODEL.md` incluye al menos ocho amenazas concretas mediante STRIDE, categorías para analizar amenazas de seguridad. Describe fronteras de confianza, controles, estado real y correspondencia verificada con el Anexo A de ISO/IEC 27001:2022; no inventa identificadores.
-- **T30:** `DECISIONS.md` contiene al menos cinco ADRs, registros de decisiones arquitectónicas, con alternativas, razones y consecuencias. Distingue aprobación de implementación y pendientes.
-- **T30:** `SECURITY.md` explica clasificación, cifrado, llaves, permisos, secretos y dependencias con evidencia.
-- **T30:** `RUNBOOK.md` cubre fallos parciales, correcciones, rechazos y sospecha de acceso indebido, sin inventar contactos.
-- **T30:** `AI_USAGE.md` registra herramientas, dos o tres prompts reales, cambios humanos y un error real con archivo/línea si ocurrió. Si falta evidencia, lo declara; no fabrica una historia.
-- **T34:** `README.md` explica requisitos previos, ejecución, alcance y pendientes. `entrega.yaml` coincide con la solución; `no_implementado` declara faltantes.
+- **T28:** fmt -check, init -backend=false -input=false y validate satisfactorios cuando exista Terraform. Sin plan/apply, datasources AWS, cargas de objetos ni recursos desplegados. Revisar manualmente confianza, acciones, recursos y contexto KMS; validate no demuestra permisos efectivos AWS.
+- **T21:** threat model con al menos ocho amenazas concretas, STRIDE, probabilidad/impacto, control, estado, riesgo residual y mapeo Anexo A 2022. Sin afirmar certificación o mitigaciones inexistentes.
+- **T30:** SECURITY referencia política/cifrado/grants/pruebas; DECISIONS contiene al menos cinco ADRs; AI_USAGE usa prompts y errores reales; RUNBOOK explica operación y recuperación sin acciones destructivas.
+- **T34 parcial:** README original conservado con instrucciones añadidas; enlaces locales y nombres de funciones/pruebas comprobados. Sin secretos/PII/datos originales en archivos nuevos.
+- Hashes de archivos protegidos, originales, manifiesto y generador iguales antes/después. Git ignora data/, llaves, estados y cachés; permite el lockfile real.
 
 ## 4. Qué no haremos todavía
-No ejecutar `terraform plan`, `terraform apply` ni desplegar AWS. No crear repositorio o commits sin autorización. La copia auditada no tenía historial: no afirmar lo contrario ni incorporar datos o secretos al iniciarlo.
+Sin integración S3, despliegue AWS, RDS/MSK/cómputo, nuevas dependencias Python, cambios funcionales, commits o ejecución de fases previas. No modificar entrega.yaml ni tools/manage.py: pendientes de S07. No editar specs S01–S05; actualizar estado consolidado en ADRs/trazabilidad.
+
+S3 versionado no es WORM; Terraform no implementa la auditoría SQL. La llave KMS no sustituye Fernet. Esquema pensado para objetos pequeños mediante PutObject, no multipart. El estado Terraform y sus variables locales no se versionan.
 
 ## 5. Decisiones pendientes
-Verificar que las decisiones documentadas correspondan a la implementación final. Antes de generar la entrega, completar datos del candidato y aprobar cualquier creación de historial.
+Instalar/disponer de Terraform y proveedor para ejecutar T28. Confirmar entradas reales/trust principals solo si la propuesta se reutiliza fuera de la evaluación; no es necesario suministrarlas para validate. No hay aprobación para desplegar. S07 resolverá manifiesto/generador, validación final, video y empaquetado.
 
 ## 6. Referencias técnicas
-- README §4: C8 y Parte F; §6: entrega; §8: uso de IA; §9: comunicación y criterio.
-- Plantillas de documentación, incluida la exigencia de cinco ADRs.
-- Pruebas: T21, T28, T30 y T34.
+README §4 C8/E/F, §6, §8 y §9; plantillas originales sin modificar. T21/T28/T30/T34. Evidencia S01–S05: responsable confirmó 43 pruebas y replay 3.795/33 reproducible en Windows; S06 no lo presenta como una nueva ejecución.
 
 ## 7. Archivos y responsabilidades
 
-**Archivos que se crearán:** filas «Crear». **Archivos que se modificarán:** filas «Modificar». No se crearán módulos Python ni carpetas vacías en esta fase documental/IaC.
-
 | Acción | Ruta exacta | Responsabilidad |
 |---|---|---|
-| Crear | `infra/main.tf` | Describir Terraform/proveedor, S3, KMS e IAM de la arquitectura; un archivo basta inicialmente. |
-| Crear | `THREAT_MODEL.md` | Completar amenazas propias a partir de `plantillas/THREAT_MODEL.md`. |
-| Crear | `SECURITY.md` | Explicar controles reales y verificaciones usando `plantillas/SECURITY.md`. |
-| Crear | `RUNBOOK.md` | Documentar operación y respuesta a incidentes desde `plantillas/RUNBOOK.md`. |
-| Crear | `AI_USAGE.md` | Registrar uso de IA y correcciones reales desde `plantillas/AI_USAGE.md`. |
-| Modificar | `DECISIONS.md` | Completar las decisiones ya registradas usando la plantilla como referencia, sin crear otro registro paralelo. |
-| Modificar | `README.md` | Incorporar instrucciones y alcance final conservando requisitos y contratos originales de Bia. |
-| Modificar | `entrega.yaml` | Completar candidato y faltantes reales, sin cambiar contraseñas o puertos existentes. |
-| Modificar | `specs/S06-delivery.md` | Registrar verificaciones editoriales y de Terraform realmente realizadas. |
-| Modificar | `specs/TRACEABILITY.md` | Vincular evidencias y pendientes, sin afirmar controles no comprobados. |
+| Crear | `infra/main.tf` | Propuesta S3/KMS/IAM, variables y restricciones de proveedor. |
+| Crear si init real | `infra/.terraform.lock.hcl` | Versiones/hashes resueltos; no generar manualmente. |
+| Crear | `SECURITY.md` | Controles reales y cómo verificarlos. |
+| Crear | `THREAT_MODEL.md` | Flujo, diez amenazas y riesgos residuales. |
+| Crear | `AI_USAGE.md` | Herramientas, prompts, revisión y error real. |
+| Crear | `RUNBOOK.md` | Comandos operativos y recuperación segura. |
+| Modificar | `DECISIONS.md` | Estados actuales y ADRs 009/010 de red/API e IaC. |
+| Modificar | `README.md` | Añadir instrucciones sin alterar el enunciado original. |
+| Modificar | `.gitignore` | Excluir artefactos privados/cachés/estado; permitir lockfile. |
+| Modificar | `specs/S06-delivery.md` | Alcance aprobado, límites y pendientes reales. |
+| Modificar | `specs/TRACEABILITY.md` | Evidencia de revisión y T28 pendiente. |
 
-**Responsabilidades y relación:** `plantillas/` permanece como material original de referencia; los documentos finales van en la raíz exigida por Bia. Terraform describe el equivalente cloud, sin cambiar el funcionamiento local ni reemplazar permisos SQL con IAM.
+**Relación:** documentación referencia funciones/SQL/tests existentes; Terraform describe una posibilidad limitada, sin conexión cloud de la aplicación.
 
-**Restricciones:** no desplegar, ejecutar plan/apply, modificar código, Docker, Makefile, puertos, datos o llaves. No crear otro `DECISIONS.md` en `docs/` ni dividir Terraform en archivos solo para imitar una estructura. La edición del manifiesto requiere preservar los objetos generados; cualquier corrección funcional de su generador vuelve al spec correspondiente.
-
-**Pruebas:** no se justifica un archivo Python nuevo para revisar documentación. T28 se verifica con `terraform init -backend=false` y `terraform validate`; T21/T30 mediante revisión de fuentes y contenido; T34 se completa con `tests/test_delivery.py`, propuesto en S07. Registrar herramientas no disponibles como límites, no como pruebas aprobadas.
-
-**Decisiones pendientes adicionales:** políticas exactas de KMS/IAM y requisitos de proveedor antes de escribir Terraform; datos del candidato e historial requieren confirmación humana. Los documentos no pueden afirmar cierre completo de S01/S02 si siguen pendientes sus validaciones normales.
-
-El generador actual reconstruye `objetos` y `no_implementado` al preparar el entorno. Antes de aprobar S06 hay que acordar cómo conservar la declaración final: corregir ese comportamiento mediante el spec propietario o aprobar una ampliación explícita a `tools/manage.py` y `tests/test_setup.py`. Esas dos modificaciones no están autorizadas por la tabla actual; editar únicamente el manifiesto puede no persistir.
+**Pruebas y restricciones:** revisión documental y estática sin nuevas suites Python; preservar datos, configuración funcional, puertos, llaves y credenciales. No ejecutar objetivos Make durante esta fase. No afirmar revisión de vulnerabilidades o permisos AWS en vivo sin evidencia.

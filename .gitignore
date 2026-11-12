@@ -10,3 +10,21 @@ logs/
 *.key
 
 data/
+
+# Terraform: código y lockfile sí; estado, proveedores, variables locales y planes no.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+!.terraform.lock.hcl
+
+# Material privado adicional; nunca forma parte de la entrega.
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
