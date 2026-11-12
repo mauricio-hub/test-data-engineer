@@ -31,3 +31,71 @@ tables:
     rows_loaded: Interno
     rows_rejected: Interno
     result: Interno
+  core.fronteras:
+    frontera_id: Interno
+    codigo_sic: Interno
+    cliente_id: Interno
+    mercado: Confidencial
+    operador_red: Confidencial
+    nivel_tension: Interno
+    fecha_registro: Interno
+    estado: Interno
+  core.limites_frontera:
+    frontera_id: Interno
+    min_kwh: Confidencial
+    max_kwh: Confidencial
+  core.archivos_ingesta:
+    archivo: Confidencial
+    source_sha256: Confidencial
+    estado: Interno
+    filas_leidas: Interno
+    filas_rechazadas: Interno
+  core.estado_lectura:
+    frontera_id: Interno
+    timestamp: Interno
+    version_lectura: Interno
+    archivo: Confidencial
+    fila: Interno
+    valida: Interno
+  core.fact_consumo_horario:
+    frontera_id: Interno
+    timestamp: Interno
+    consumo_kwh: Confidencial
+    calidad_lectura: Interno
+  core.consumos_cuarentena:
+    archivo: Confidencial
+    source_sha256: Confidencial
+    fila: Interno
+    motivo: Interno
+    payload: Restringido-PII
+  core.archivos_facturacion:
+    archivo: Confidencial
+    source_sha256: Confidencial
+    estado: Interno
+    filas_leidas: Interno
+    filas_rechazadas: Interno
+  core.facturas:
+    factura_id: Interno
+    frontera_id: Interno
+    periodo: Interno
+    consumo_facturado_kwh: Confidencial
+    tarifa_cop_kwh: Confidencial
+    valor_total_cop: Confidencial
+    archivo: Confidencial
+    payload: Restringido-PII
+  core.factura_componentes:
+    factura_id: Interno
+    posicion: Interno
+    valor_cop_kwh: Confidencial
+    payload: Restringido-PII
+  core.facturas_cuarentena:
+    archivo: Confidencial
+    source_sha256: Confidencial
+    fila: Interno
+    motivo: Interno
+    payload: Restringido-PII
+  analytics.v_consumo_mensual:
+    frontera_id: Interno
+    mes: Interno
+    consumo_kwh: Confidencial
+    horas_con_dato: Interno

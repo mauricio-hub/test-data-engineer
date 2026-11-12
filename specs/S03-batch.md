@@ -1,74 +1,60 @@
 # S03 — Ingesta y correcciones de consumos
 
-Estado: propuesto. Fase 3 no autorizada. Depende de S02.
+Estado: plan reducido implementado y probado con PostgreSQL real. Suite completa: 37 pruebas aprobadas. Recorrido Docker/Make pendiente por permisos del entorno. Depende de S02.
 
 ## 1. Objetivo
-Cargar archivos de consumo, incorporar correcciones y repetir la ejecución sin duplicar datos ni dañar lo ya cargado.
+Cargar consumos y correcciones sin duplicar datos, recuperar versiones reemplazadas ni dañar meses ya cargados.
 
 ## 2. Qué vamos a construir
-- Descubrir archivos por directorio y reconocer formatos por contenido y cabecera, sin una lista de meses.
-- Leer registros CSV completos; convertir fechas a `America/Bogota` y números con `Decimal`, aritmética decimal. Convertir MWh a kWh multiplicando por 1.000 en cada fila.
-- Modelar clientes, fronteras, límites y consumos, con una lectura única por `(frontera_id, timestamp)`.
-- Guardar versión, nombre de archivo y posición de fila para decidir qué lectura gana. Registrar contenido y estado de cada archivo.
-- Aplicar cada archivo mediante una transacción: confirmar todos sus cambios o deshacerlos si falla.
+- Descubrir los archivos de `data/consumos/` por nombre, sin meses fijos.
+- Reconocer las tres cabeceras existentes, coma/punto y coma y UTF-8/Windows-1252. Leer registros CSV completos antes de escribir.
+- Normalizar fechas a Colombia (UTC−5 fijo), convertir MWh por fila y conservar precisión decimal sin redondear para facturación.
+- Guardar maestros, archivos, precedencia, hechos válidos y evidencia cifrada. Reutilizar clientes y seguridad S02 sin trasladar sus funciones.
+- Confirmar cada archivo completo en una transacción. Conservar los archivos anteriores si otro archivo falla.
 
 ## 3. Cómo sabemos que funciona
-- **T09/T10:** se reconocen los formatos existentes, decimal con coma y fechas UTC que cambian de mes al convertir a hora local. El lector no se elige por mes.
-- **T11:** gana la mayor versión; en empate, la última fila siguiendo nombres de archivo en orden lexicográfico. Un archivo anterior en ese orden no gana por llegar después.
-- **T12:** nulos, vacíos, negativos y valores mayores de 1.000.000 kWh se rechazan; cero y exactamente 1.000.000 son válidos. El orden de selección y validación sigue A01 una vez aprobado.
-- **T05/T06:** repetir no duplica datos ni cuarentena. Una corrección cambia solo las claves afectadas y no se revierte al reprocesar originales; no se vacían ni reconstruyen todas las tablas.
-- **T07/T08:** un archivo estructuralmente corrupto se rechaza completo sin cambiar datos previos. El motivo y la evidencia protegida son consultables. Los rechazos B4 pueden conservarse por fila.
-- **T08:** un mes sintético en formato conocido se incorpora sin cambiar código. Las pruebas usan un directorio temporal, no modifican originales.
-- **T19:** cada intento registra identidad técnica, acción, tiempos, conteos y resultado, también al fallar, sin datos personales. El resultado se conserva aunque se deshaga la transacción de negocio.
-- Un fallo de infraestructura termina con error. Ante un archivo rechazado, la propuesta es continuar con otros y terminar con éxito solo si se preserva la integridad, dejando el rechazo explícito.
+- **T09/T10:** UTC puede cambiar el mes local; coma decimal y MWh producen kWh correctos.
+- **T11:** gana `(version_lectura, nombre de archivo, posición lógica)`. El orden de llegada no cambia el ganador; SQL usa comparación de nombres con intercalación `C`.
+- **T12/A01 aprobada:** seleccionar por precedencia antes de B4. Vacío, negativo y mayor de 1.000.000 se rechazan. Cero y exactamente 1.000.000 son válidos. Un ganador inválido conserva sus metadatos, elimina solo su hecho anterior y deja una hora sin lectura válida. Una versión inferior no la restaura.
+- **T05/T06:** reintentar conserva negocio y cuarentena; una versión posterior válida puede recuperar una hora. No vaciar ni reconstruir tablas.
+- **T07/T08:** archivo truncado completo en cuarentena cifrada, sin aplicar siquiera sus primeras filas válidas. Mes nuevo en formato existente se descubre sin cambiar código.
+- **T15/T17/T18:** clasificación activa de todas las columnas nuevas; evidencia cifrada antes de SQL; roles analista y auditor sin acceso a bases de consumo/cuarentena. Ingesta sin TRUNCATE y sin modificar auditoría.
+- **T19/T26:** auditoría por archivo y ejecución; errores SQL sin contenido de entrada en mensajes o logs. Los fallos de negocio se revierten antes de registrar el fallo; una caída de conexión puede impedir también auditar.
+- Tres escenarios en `tests/test_batch.py` cubren lo anterior e ingieren los originales exclusivamente en una base temporal propia. Las suites S01/S02 se conservan.
 
 ## 4. Qué no haremos todavía
-No inventar rechazos por `calidad_lectura`. No admitir cambios de contenido bajo un mismo nombre sin acordar una política: los originales son inmutables. No desarrollar aún las salidas de S04.
+Sin facturación, reportes de calidad, agregación mensual, métricas contractuales ni vista analítica definitiva: corresponden a S04. `make run` conserva su rechazo explícito hasta conectar el contrato completo; S03 se ejecuta con `python -m src.batch.pipeline`.
+
+Sin streaming, nuevas dependencias, refactorización de clientes, `src/quality/`, reintentos automáticos ni actualización de maestros existentes. Un nombre ya registrado con contenido distinto se rechaza como `changed_file`, conservando el contenido previamente aplicado. No se inventan rechazos por `calidad_lectura`.
 
 ## 5. Decisiones pendientes
-Resolver A01–A05: validación, duplicados, contadores, idempotencia y calendario de huecos.
+A01 está aprobada internamente, sin atribuir esta interpretación a Bia. A02/A03 (contadores exactos y conflictivos y alcance del reporte) y A05 (calendario de huecos) se concretarán en S04. A04: negocio/cuarentena estables, nueva auditoría por intento. Un archivo ininterpretable o con frontera desconocida se rechaza completo; no introduce hechos parciales.
 
 ## 6. Referencias técnicas
-- README §4: Parte A, B1–B4, B7 y C5.
-- Pruebas: T05–T12 y T19.
+README §4: Parte A; B1–B4 y B7; C1, C3–C5; Parte E. Pruebas T05–T12, T15, T17–T19 y T26; regresión S01/S02. Los reportes B5/B6 y §5 siguen pendientes de S04.
 
 ## 7. Archivos y responsabilidades
 
-**Responsable de ETL:** S03 crea extracción, transformación, persistencia, coordinación batch y validación de calidad. Reutiliza seguridad y observabilidad de S02. Mantener la secuencia S03 → S04 → S05.
-
-**Archivos que se crearán:** filas «Crear». **Archivos que se modificarán:** filas «Modificar». `src/batch/` y `src/quality/` todavía no existen y se crean aquí; los módulos de seguridad y el servicio de clientes deben venir de S02 aprobado y verificado.
+**Archivos que se crearán:** filas Crear. **Archivos que se modificarán:** filas Modificar. Plan reducido aprobado, sin módulos auxiliares adicionales.
 
 | Acción | Ruta exacta | Responsabilidad |
 |---|---|---|
-| Crear | `src/batch/__init__.py` | Documentar la interfaz mínima de batch, sin ejecutar procesos al importar. |
-| Crear | `src/batch/extract.py` | Recibir la lectura/parser de clientes del servicio y añadir descubrimiento y lectura de consumos y maestros pendientes. |
-| Crear | `src/batch/transform.py` | Recibir la protección de filas de clientes y añadir normalización de hora, unidades, decimales y precedencia, sin SQL. |
-| Crear | `src/batch/load.py` | Recibir conexión/persistencia de clientes y aplicar cargas de consumo, versiones, transacciones y cuarentena. |
-| Crear | `src/batch/pipeline.py` | Coordinar clientes y consumos usando componentes compartidos, sin concentrar reglas de datos. |
-| Crear | `src/quality/__init__.py` | Documentar la interfaz mínima de calidad; los reportes se crearán en S04. |
-| Crear | `src/quality/validators.py` | Recibir controles semánticos de clientes y añadir B4/rechazos técnicos, separados de lectura y persistencia. |
-| Crear | `sql/003_consumptions.sql` | Definir fronteras/límites, hechos horarios, procedencia, registro de archivos, cuarentena y permisos específicos. |
-| Crear | `tests/test_batch.py` | Comprobar formatos, normalización, validación y precedencia con casos pequeños. |
-| Crear | `tests/test_batch_database.py` | Probar idempotencia, correcciones incrementales, mes nuevo y corrupción con PostgreSQL real aislado. |
-| Crear | `tests/db_helpers.py` | Compartir recursos temporales y conexiones entre suites de base, sin otro sistema de preparación. |
-| Modificar | `src/client_service.py` | Delegar lectura, transformación, validación y carga en los componentes recién creados, conservando su interfaz y sin duplicar funciones. |
-| Modificar | `src/security/classification.py` | Extender el contrato al esquema nuevo y su cuarentena, sin reimplementar cifrado. |
-| Modificar | `data_classification.yaml` | Clasificar todas las columnas nuevas junto con el cambio SQL. |
-| Modificar | `src/observability.py` | Ampliar eventos y conteos permitidos de etapas, sin filas ni PII. |
-| Modificar | `tools/manage.py` | Registrar SQL y nombres del manifiesto; no introducir ETL aquí. |
-| Modificar | `config/pipeline.yaml` | Conectar opciones existentes de rutas/procesamiento a su uso efectivo, sin secretos. |
-| Modificar | `tests/test_privacy.py` | Mantener los casos S02 y adaptar solo los puntos internos de llamada que cambien con la extracción. |
-| Modificar | `tests/test_privacy_database.py` | Reutilizar el auxiliar común sin cambiar las garantías de privacidad S02. |
-| Modificar | `specs/S03-batch.md` | Registrar interpretaciones aprobadas y aceptación real. |
-| Modificar | `specs/TRACEABILITY.md` | Registrar cobertura y resultados de batch. |
-| Modificar | `DECISIONS.md` | Completar precedencia, aislamiento y esquema aprobado. |
+| Crear | `src/batch/__init__.py` | Identificar el paquete, sin efectos al importar. |
+| Crear | `src/batch/extract.py` | Descubrir archivos y leer CSV completos. |
+| Crear | `src/batch/transform.py` | Normalizar fechas/unidades y marcar B4 sin SQL. |
+| Crear | `src/batch/load.py` | Maestros, precedencia, transacción por archivo y cuarentena cifrada. |
+| Crear | `src/batch/pipeline.py` | Coordinar S02 y consumos; CLI de etapa y logs seguros. |
+| Crear | `sql/003_consumptions.sql` | Seis tablas, claves, restricciones y permisos mínimos. |
+| Crear | `tests/test_batch.py` | Tres pruebas de alto valor con PostgreSQL aislado. |
+| Modificar | `src/security/classification.py` | Ampliar modelo; clientes conserva validación S02 por defecto. |
+| Modificar | `data_classification.yaml` | Clasificar columnas nuevas y proteger evidencia. |
+| Modificar | `src/observability.py` | Admitir filas rechazadas sin cambiar llamadas S02 existentes. |
+| Modificar | `tools/manage.py` | Aplicar SQL 003 en up y declarar la tabla de consumos al preparar manifiesto. |
+| Modificar | `config/pipeline.yaml` | Ruta y tamaño de lote efectivamente utilizados, sin secretos. |
+| Modificar | `specs/S03-batch.md` | Alcance autorizado y criterios verificables. |
+| Modificar | `specs/TRACEABILITY.md` | Evidencia de pruebas ejecutadas. |
+| Modificar | `DECISIONS.md` | Modelo, A01 y límites de idempotencia. |
 
-**Responsabilidades y relación:** el coordinador batch usa el servicio de clientes y los componentes de consumo. El servicio de clientes usa extracción, transformación, carga y validadores; nunca importa `src/batch/pipeline.py`. Los componentes batch no importan el servicio ni las fachadas. Validadores y seguridad no importan coordinadores. Esta dirección evita el ciclo servicio → pipeline → servicio.
+**Relación:** pipeline llama al servicio de clientes y a extracción/persistencia; persistencia usa transformación y seguridad. Seguridad nunca importa batch. Sin cambios en `src/client_service.py`, fachadas o pruebas existentes.
 
-Al trasladar una función de `src/client_service.py`, su implementación anterior se sustituye por delegación; no se mantiene una segunda versión. Conservar las fachadas `src/clients.py` y `src/privacy.py` sin modificar sus contratos. La preparación SQL sigue separada de la cuenta operativa.
-
-**Restricciones:** no crear otros cifradores, máscaras, productores o sistemas de conexiones. No cambiar `data/`, puertos, credenciales, volúmenes o Makefile. Reutilizar auditoría S01 y garantías de clientes S02 sin ampliar sus permisos. `make run` no debe declarar completo el contrato mientras falten salidas de S04; la conexión final de ese comando se mantiene en S04.
-
-**Pruebas:** `tests/test_batch.py` cubre T09–T12 y validadores; `tests/test_batch_database.py` cubre T05–T08/T19 y relaciones T04. Repetir todas las suites S01/S02, incluyendo fachadas y CLI. Fixtures fuera de `data/` y únicamente recursos temporales propios. El auxiliar común se justifica por dos suites de integración, sin copiar su lógica.
-
-**Decisiones pendientes adicionales:** aprobar esquema exacto, interfaces de registros normalizados y traslado de responsabilidades desde el servicio de clientes. La tabla no resuelve A01–A05 ni autoriza crear módulos antes de aprobar S03. S04 conserva reportes y facturación; S05 conserva streaming.
+**Restricciones:** no modificar originales, credenciales, puertos, volúmenes, Makefile ni Compose. Preparación SQL administrativa separada del rol operativo; solo el hecho horario concede DELETE para A01. Sin S04/S05.

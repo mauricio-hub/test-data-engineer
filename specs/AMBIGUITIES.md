@@ -1,6 +1,6 @@
 # Ambigüedades y propuestas
 
-Este documento separa lo que exige Bia de las interpretaciones que proponemos. Las interpretaciones de consumos y streaming siguen pendientes; A09 y los detalles operativos de A10 se resolvieron al autorizar S02 y S01, respectivamente. Todos los ejemplos son sintéticos; «Frontera A» representa un punto de medición ficticio.
+Este documento separa lo que exige Bia de las interpretaciones que proponemos. A01–A06 fueron aprobadas internamente al validar S03 y autorizar S04; las decisiones de streaming siguen pendientes. A09 y los detalles operativos de A10 se resolvieron al autorizar S02 y S01, respectivamente. Todos los ejemplos son sintéticos; «Frontera A» representa un punto de medición ficticio.
 
 Las referencias corresponden al [README de Bia](../README.md). Aprobar una interpretación internamente no confirma que coincida con el resultado esperado por el evaluador. En los puntos marcados «Requiere consulta a Bia» recomendamos solicitar esa aclaración antes de implementar; no enviaremos consultas sin autorización. Si no hay respuesta, deberá quedar registrada la interpretación que apruebes y el riesgo asumido.
 
@@ -21,7 +21,7 @@ Validar primero permite recuperar la versión antigua. Elegir primero la versió
 Entre los registros cuya estructura podamos interpretar, seleccionar primero según B3 y después aplicar B4. Si el ganador es inválido, dejar un hueco, sin recuperar una lectura reemplazada. Reportar también las filas inválidas individualmente. Esta es nuestra interpretación, no una regla adicional de Bia.
 
 **Estado:**
-Requiere consulta a Bia; pendiente también de aprobación humana antes de S03.
+Aprobada internamente por el usuario para S03/S04. No consta confirmación de Bia; se conserva el riesgo de interpretación del evaluador.
 
 ### A02 — ¿Cómo distinguimos duplicados exactos y conflictivos?
 
@@ -37,10 +37,10 @@ Para la Frontera A a las 10:00 aparecen dos filas de 100 kWh, versión 1, calida
 Comparar el texto original hace distintas dos filas que representan el mismo consumo, por ejemplo 0,1 MWh y 100 kWh. Comparar solo consumo omite diferencias de versión o calidad. Comparar la lectura normalizada permite fijar una definición estable, pero exige acordar qué campos incluye y cómo se relaciona con los rechazos de A01.
 
 **Recomendación:**
-Comparar frontera, hora normalizada, kWh, versión y calidad, excluyendo archivo y posición de origen. Recorrer las lecturas de menor a mayor precedencia según B3: una repetición cuenta como exacta y un cambio de lectura como conflictivo. Cada lectura redundante aporta una unidad; no contar grupos. Resolver con A01 el tratamiento de las inválidas y el posible solapamiento entre contadores de duplicados y rechazos.
+Comparar frontera, hora normalizada, kWh, versión y calidad, excluyendo archivo y posición. Recorrer archivos lexicográficamente y sus filas en orden lógico: cada fila sobrante cuenta una vez. Si su firma ya apareció para esa clave, es exacta; si es nueva, conflictiva. B4 se cuenta independientemente, también si coincide con un duplicado.
 
 **Estado:**
-Requiere consulta a Bia; pendiente también de aprobación humana antes de S03/S04.
+Aprobada internamente por el usuario para S03/S04. No consta confirmación de Bia; se conserva el riesgo de interpretación del evaluador.
 
 ### A03 — ¿Los reportes describen todos los datos o solo la última ejecución?
 
@@ -56,10 +56,10 @@ Una primera ejecución lee 100 registros y aplica una corrección de 100 a 110 k
 Un reporte por ejecución facilita ver el trabajo reciente, pero cambia cuando se omiten archivos ya procesados. Un reporte sobre el conjunto vigente permite comparar calidad entre reejecuciones. También debemos distinguir una corrección por versión de un archivo cuyo nombre simplemente dice «corrección».
 
 **Recomendación:**
-Hacer que `dq_report.json` describa el conjunto de entradas vigentes y permanezca estable al reejecutar; usar `metrics.json` para el trabajo de cada ejecución. En el reporte de calidad, `filas_leidas` contará registros lógicos de consumos: una fila CSV completa, aunque ocupe varias líneas físicas. Contar como corrección un incremento de versión que gana sobre una clave frontera-hora ya existente al recorrer según B3; no deducirla solo del nombre del archivo.
+Hacer que `dq_report.json` describa el conjunto de entradas vigentes y permanezca estable al reejecutar; usar `metrics.json` para el trabajo de cada ejecución. En el reporte de calidad, `filas_leidas` contará registros lógicos de consumos: una fila CSV completa, aunque ocupe varias líneas físicas. Contar como corrección un incremento de versión que gana sobre una clave frontera-hora ya existente al recorrer los archivos lexicográficamente y sus filas en orden lógico; no deducirla solo del nombre del archivo.
 
 **Estado:**
-Requiere consulta a Bia; pendiente también de aprobación humana antes de S03/S04.
+Aprobada internamente por el usuario para S03/S04. No consta confirmación de Bia; se conserva el riesgo de interpretación del evaluador.
 
 ### A04 — ¿Qué debe permanecer idéntico al ejecutar dos veces?
 
@@ -78,7 +78,7 @@ Exigir igualdad de toda la base impediría añadir la auditoría requerida. Sepa
 Mantener iguales los datos de negocio, la cuarentena y las salidas que dependen únicamente de esos datos. Añadir una entrada de auditoría por ejecución; permitir que cambien tiempos y contenido operativo de métricas y logs. No actualizar metadatos de una lectura cuando no haya un cambio efectivo.
 
 **Estado:**
-Requiere consulta a Bia sobre el alcance de igualdad. S01 está autorizado y prepara el registro de auditoría exigido por C5; la comparación de datos y salidas sigue pendiente para S03/S07.
+Aprobada internamente por el usuario para S03/S04. No consta confirmación de Bia; se conserva el riesgo de interpretación del evaluador.
 
 ### A05 — ¿Para qué fronteras y meses contamos horas sin lectura?
 
@@ -97,7 +97,7 @@ Contar solo lo observado puede ocultar una frontera que no reportó nada. Contar
 Considerar todas las fronteras del maestro y todas las horas de los meses locales identificados en entradas de consumo aceptadas. No filtrar por `estado` o `fecha_registro` sin una regla expresa. Un archivo rechazado completo no añade meses al conjunto que evaluamos.
 
 **Estado:**
-Requiere consulta a Bia; pendiente también de aprobación humana antes de S03/S04.
+Aprobada internamente por el usuario para S03/S04. No consta confirmación de Bia; se conserva el riesgo de interpretación del evaluador.
 
 ### A06 — ¿Cómo contamos facturas huérfanas y redondeamos el consumo?
 
@@ -116,7 +116,7 @@ Contar facturas describe cuántos registros rechazamos; contar fronteras describ
 Contar facturas rechazadas en `fronteras_huerfanas_facturacion`. Sumar con `Decimal`, aritmética decimal que evita aproximaciones de números binarios, y redondear a tres decimales solo al exportar. Mantener `ROUND_HALF_UP`: en un empate exacto, redondear alejándose de cero; para consumos válidos no negativos, hacia arriba.
 
 **Estado:**
-Requiere consulta a Bia; pendiente también de aprobación humana antes de S04.
+Aprobada internamente por el usuario para S03/S04. No consta confirmación de Bia; se conserva el riesgo de interpretación del evaluador.
 
 ### A07 — ¿Cuándo declaramos una ausencia si pueden llegar lecturas tardías?
 

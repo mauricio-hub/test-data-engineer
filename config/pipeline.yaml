@@ -1,8 +1,7 @@
-# Configuración sin credenciales; el pipeline sigue pendiente de S02-S04.
+# Configuración S03 sin credenciales; reportes y make run completo quedan en S04.
 pipeline:
   nombre: ingesta_consumos
   batch_size: 5000
-  reintentos: 3
 origen:
   tipo: archivos_locales
   ruta: data
@@ -10,4 +9,4 @@ destino:
   tipo: postgres
   credenciales_locales: .local/ingesta.json
   rol_operativo: ingesta
-# La llave y el mecanismo PII se definirán en S02, fuera de la base y del paquete.
+# BIA_PII_KEY_FILE debe apuntar a la llave externa configurada explícitamente en S02.
