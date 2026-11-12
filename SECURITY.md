@@ -13,7 +13,7 @@ Alcance: aplicación local Python, PostgreSQL y Redpanda. S01–S05 y las 43 pru
 
 `BIA_PII_KEY_FILE` debe señalar una llave Fernet existente fuera del repositorio. El programa no la genera ni rota silenciosamente. Si falta, es inválida o no coincide con datos existentes, la operación falla. POSIX comprueba permisos privados; Windows requiere custodiar la ACL externamente: el código no la certifica.
 
-`tools/manage.py::prepare` genera credenciales locales nuevas para una instalación y conserva las existentes. `.local/ingesta.json` contiene solo la cuenta operativa; `.local/evaluation.json` es administrativo. SQL 001 inicializa contraseñas solo si aún no existen. El secreto heredado no está incorporado al flujo vigente. La revisión del ZIP y su historial sigue pendiente de S07.
+`tools/manage.py::prepare` genera credenciales locales nuevas para una instalación y conserva las existentes. `.local/ingesta.json` contiene solo la cuenta operativa; `.local/evaluation.json` es administrativo. SQL 001 inicializa contraseñas solo si aún no existen. El secreto heredado no está incorporado al flujo vigente. S07 añade revisión de objetos Git y exclusiones en `tools/package_delivery.py`, con pruebas en `tests/test_delivery.py`. La revisión del ZIP definitivo sigue pendiente: los escaneos de patrones/credenciales conocidas no prueban ausencia universal de secretos.
 
 No publicar `.local/`, `.env`, llaves, estados Terraform ni `entrega.yaml` en Git. El manifiesto tiene una excepción de inclusión en el ZIP de evaluación, gestionada en S07; nunca incluye la llave PII. No imprimir archivos de credenciales para diagnosticar conexiones.
 

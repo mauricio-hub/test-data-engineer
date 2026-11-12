@@ -11,6 +11,42 @@ from tools import manage
 
 
 class SetupTests(unittest.TestCase):
+    def test_setup_preserves_manifest_and_does_not_restore_obsolete_status(self) -> None:
+        """Comprueba el recorrido setup/prepare sin instalar ni rotar secretos de la instalación."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.dict(os.environ, {"PG_PORT": "55432"}):
+                original = manage.prepare(root)
+                manifest = json.loads((root / "entrega.yaml").read_text(encoding="utf-8"))
+                manifest["candidato"] = {"nombre_completo": "Candidato sintético", "email": "example.invalid", "horas_invertidas": 12}
+                manifest["objetos"]["vista_analytics"] = "analytics.v_evaluacion"
+                manifest["no_implementado"] = [*manage.LEGACY_PENDING, "Limitación sintética declarada"]
+                manifest["nota_evaluacion"] = "Conservar"
+                (root / "entrega.yaml").write_text(json.dumps(manifest), encoding="utf-8")
+                secret = (root / ".local/postgres_password").read_bytes()
+                python = root / (".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python")
+                python.parent.mkdir(parents=True)
+                python.touch()
+
+                def checked(command: list[str], stage: str, **kwargs: object) -> None:
+                    """Ejecuta únicamente prepare en el directorio sintético al delegar setup."""
+                    if command[-1] == "prepare":
+                        manage.prepare(root)
+
+                with patch.object(manage, "ROOT", root), patch.object(manage, "run_checked", side_effect=checked) as runner, \
+                     patch("tools.manage.secrets.token_hex", side_effect=AssertionError("No rotar")):
+                    manage.setup()
+                    manage.setup()
+                self.assertEqual(runner.call_count, 4)
+                after = json.loads((root / "entrega.yaml").read_text(encoding="utf-8"))
+                self.assertEqual(after["no_implementado"], ["Limitación sintética declarada"])
+                self.assertEqual(after["objetos"], manifest["objetos"])
+                self.assertEqual(after["candidato"], manifest["candidato"])
+                self.assertEqual(after["nota_evaluacion"], "Conservar")
+                self.assertEqual(after["postgres"], manifest["postgres"])
+                self.assertEqual(manage.load_state(root), original)
+                self.assertEqual((root / ".local/postgres_password").read_bytes(), secret)
+
     def test_prepare_is_repeatable_and_manifest_matches(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

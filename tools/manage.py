@@ -13,6 +13,13 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 ROLES = {"ingesta": "rol_ingesta", "analista": "rol_analista", "auditor": "rol_auditor"}
+OBJECTS = {"tabla_consumos": "core.fact_consumo_horario", "tabla_clientes": "core.clientes",
+           "vista_analytics": "analytics.v_consumo_mensual", "tabla_auditoria": "audit.runs"}
+LEGACY_PENDING = {
+    "S03-S07 pendientes de autorización e implementación",
+    "S04-S07 pendientes de autorización e implementación; make run completo pendiente de S04",
+    "S05-S07 pendientes de autorización e implementación",
+}
 
 
 class SetupError(Exception):
@@ -82,6 +89,8 @@ def prepare(root: Path = ROOT) -> dict:
     # JSON es un subconjunto válido de YAML; safe_load del verificador lo acepta.
     manifest_path = root / "entrega.yaml"
     candidate = {"nombre_completo": "TODO", "email": "TODO", "horas_invertidas": 0}
+    previous = {}
+    objects, pending = dict(OBJECTS), []
     if manifest_path.exists():
         try:
             content = manifest_path.read_text(encoding="utf-8")
@@ -97,18 +106,28 @@ def prepare(root: Path = ROOT) -> dict:
                 raise ValueError
             if not isinstance(candidate.get("horas_invertidas"), (int, float)):
                 raise ValueError
+            objects = previous.get("objetos", objects)
+            pending = previous.get("no_implementado", [])
+            if not isinstance(objects, dict) or not set(OBJECTS) <= set(objects):
+                raise ValueError
+            if not all(isinstance(name, str) and re.fullmatch(r"[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*", name)
+                       for name in objects.values()):
+                raise ValueError
+            if not isinstance(pending, list) or not all(isinstance(item, str) for item in pending):
+                raise ValueError
         except ImportError:
             raise SetupError("Instalar PyYAML para preservar el manifiesto YAML editado.") from None
         except Exception:
             raise SetupError("No se pudo interpretar el manifiesto; no se reemplaza.") from None
-    manifest = {
+    # Conservar anotaciones y faltantes concretos; retirar solo declaraciones de fases ya superadas.
+    manifest = dict(previous)
+    manifest.update({
         "candidato": candidate,
         "postgres": {"host": state["host"], "port": state["port"], "database": state["database"],
                      "superusuario": state["superusuario"], "roles": {r: state[r] for r in ROLES}},
-        "objetos": {"tabla_consumos": "core.fact_consumo_horario", "tabla_clientes": "core.clientes", "vista_analytics": "analytics.v_consumo_mensual",
-                    "tabla_auditoria": "audit.runs"},
-        "no_implementado": ["S05-S07 pendientes de autorización e implementación"],
-    }
+        "objetos": objects,
+        "no_implementado": [item for item in pending if item not in LEGACY_PENDING],
+    })
     private_write(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     return state
 

@@ -62,8 +62,8 @@ terraform -chdir=infra init -backend=false -input=false
 terraform -chdir=infra validate
 ```
 
-No ejecutar plan/apply. Init descarga el proveedor y genera lockfile/caché; no crea recursos AWS. En S06 esta validación queda pendiente si Terraform no está disponible. Variables de confianza/nombre son obligatorias para cualquier uso futuro; no crear archivos con cuentas reales en Git. La política S3 descrita requiere cabeceras de cifrado y llave explícitas; no existe integración S3 en el programa.
+No ejecutar plan/apply. Init descarga el proveedor y genera lockfile/caché; no crea recursos AWS. El responsable confirmó validate satisfactorio con Terraform 1.17.1 en Windows; el lockfile está versionado. Registrar fmt/validate del cierre sin confundir esta evidencia con un despliegue. Variables de confianza/nombre son obligatorias para cualquier uso futuro; no crear archivos con cuentas reales en Git. La política S3 descrita requiere cabeceras de cifrado y llave explícitas; no existe integración S3 en el programa.
 
 Alcance de la comprobación: [terraform validate](https://developer.hashicorp.com/terraform/cli/commands/validate) revisa consistencia y esquema, no servicios remotos ni autorización efectiva en AWS.
 
-S07 debe revisar `entrega.yaml` y el generador: todavía reconstruye una declaración antigua de `no_implementado`. No se corrige editando secretos ni declarando completado un paquete aún no revisado. Video, validación final y ZIP siguen pendientes.
+El generador conserva faltantes concretos y ya no restaura la declaración antigua de fases pendientes. Completar candidato y ejecutar el recorrido final con `make verificar` antes de autorizar el paquete. El empaquetador `tools/package_delivery.py` no reemplaza esa verificación, no crea commits ni sobrescribe paquetes. El ZIP definitivo, video y `make down` siguen pendientes de autorización; las pruebas de empaquetado usan solo archivos temporales.

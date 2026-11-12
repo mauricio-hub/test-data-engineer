@@ -98,7 +98,7 @@ S01–S05 implementadas y validadas por el responsable en Windows: 43 pruebas ap
 
 ## ADR-010 — Terraform mínimo sin despliegue
 
-**Estado:** alcance aprobado e implementado en S06; init/fmt/validate pendientes porque Terraform no está instalado. No hay recursos AWS creados.
+**Estado:** implementado en S06; validate satisfactorio en Windows con Terraform 1.17.1, confirmado por el responsable. Lockfile generado y versionado. No se creó infraestructura AWS; fmt y el recorrido final se registran por separado.
 **Contexto:** README exige S3 cifrado/versionado, KMS con política y tres roles equivalentes; la aplicación ejecutada sigue siendo local.
 **Opciones:** infraestructura completa con cómputo/BD/broker gestionados; solo bucket sin políticas; almacenamiento protegido con roles explícitos.
 **Decisión:** un archivo `infra/main.tf`, bucket privado, bloqueo público, ownership sin ACL, versionado, SSE-KMS, TLS y cabeceras exactas de cifrado. Tres prefijos: protected/ (artefactos previamente cifrados), analytics/ (sin PII), audit/ (registros técnicos). No subir originales ni generar objetos desde Terraform.

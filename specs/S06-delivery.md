@@ -1,6 +1,6 @@
 # S06 — Terraform y documentación técnica
 
-Estado: alcance aprobado e implementado sin cambiar S01–S05. Terraform no está instalado: fmt/init/validate pendientes. No se desplegaron recursos.
+Estado: implementada sin cambiar S01–S05. El responsable confirmó validate satisfactorio en Windows con Terraform 1.17.1; lockfile generado y versionado. Sin despliegue AWS. La evidencia del cierre final se registra en S07.
 
 ## 1. Objetivo
 Entregar la descripción mínima AWS y documentación defendible de lo construido, sin inventar capacidades ni exposición de datos.
@@ -24,7 +24,7 @@ Sin integración S3, despliegue AWS, RDS/MSK/cómputo, nuevas dependencias Pytho
 S3 versionado no es WORM; Terraform no implementa la auditoría SQL. La llave KMS no sustituye Fernet. Esquema pensado para objetos pequeños mediante PutObject, no multipart. El estado Terraform y sus variables locales no se versionan.
 
 ## 5. Decisiones pendientes
-Instalar/disponer de Terraform y proveedor para ejecutar T28. Confirmar entradas reales/trust principals solo si la propuesta se reutiliza fuera de la evaluación; no es necesario suministrarlas para validate. No hay aprobación para desplegar. S07 resolverá manifiesto/generador, validación final, video y empaquetado.
+Registrar fmt y la validación final sin volver a declarar ausente Terraform en Windows. Confirmar entradas reales/trust principals solo si la propuesta se reutiliza fuera de la evaluación; no es necesario suministrarlas para validate. No hay aprobación para desplegar. S07 resolverá manifiesto/generador, validación final, video y empaquetado.
 
 ## 6. Referencias técnicas
 README §4 C8/E/F, §6, §8 y §9; plantillas originales sin modificar. T21/T28/T30/T34. Evidencia S01–S05: responsable confirmó 43 pruebas y replay 3.795/33 reproducible en Windows; S06 no lo presenta como una nueva ejecución.
@@ -34,7 +34,7 @@ README §4 C8/E/F, §6, §8 y §9; plantillas originales sin modificar. T21/T28/
 | Acción | Ruta exacta | Responsabilidad |
 |---|---|---|
 | Crear | `infra/main.tf` | Propuesta S3/KMS/IAM, variables y restricciones de proveedor. |
-| Crear si init real | `infra/.terraform.lock.hcl` | Versiones/hashes resueltos; no generar manualmente. |
+| Generado y versionado | `infra/.terraform.lock.hcl` | Versiones/hashes reales resueltos por init. |
 | Crear | `SECURITY.md` | Controles reales y cómo verificarlos. |
 | Crear | `THREAT_MODEL.md` | Flujo, diez amenazas y riesgos residuales. |
 | Crear | `AI_USAGE.md` | Herramientas, prompts, revisión y error real. |
@@ -43,7 +43,7 @@ README §4 C8/E/F, §6, §8 y §9; plantillas originales sin modificar. T21/T28/
 | Modificar | `README.md` | Añadir instrucciones sin alterar el enunciado original. |
 | Modificar | `.gitignore` | Excluir artefactos privados/cachés/estado; permitir lockfile. |
 | Modificar | `specs/S06-delivery.md` | Alcance aprobado, límites y pendientes reales. |
-| Modificar | `specs/TRACEABILITY.md` | Evidencia de revisión y T28 pendiente. |
+| Modificar | `specs/TRACEABILITY.md` | Evidencia de revisión y validate confirmado por el responsable. |
 
 **Relación:** documentación referencia funciones/SQL/tests existentes; Terraform describe una posibilidad limitada, sin conexión cloud de la aplicación.
 

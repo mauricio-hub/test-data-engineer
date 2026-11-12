@@ -28,3 +28,7 @@ crash.*.log
 *.pfx
 id_rsa
 id_ed25519
+
+# Paquetes generados: el manifiesto con credenciales de evaluación no debe llegar a Git.
+/dist/
+*.zip
