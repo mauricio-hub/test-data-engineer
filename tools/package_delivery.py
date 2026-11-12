@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = {"README.md", "Makefile", "docker-compose.yml", "requirements.txt", "data_classification.yaml",
               "SECURITY.md", "THREAT_MODEL.md", "DECISIONS.md", "AI_USAGE.md", "RUNBOOK.md", "AGENTS.md",
               ".gitignore", ".env.example", "entrega.example.yaml", "entrega.yaml"}
-SOURCE_DIRS = {"src", "sql", "tools", "tests", "specs", "docs", "infra", "plantillas"}
+SOURCE_DIRS = {"src", "sql", "tools", "tests", "specs", "docs", "infra", "plantillas", "config"}
 REQUIRED = {"README.md", "Makefile", "docker-compose.yml", "requirements.txt", "data_classification.yaml",
             "SECURITY.md", "THREAT_MODEL.md", "DECISIONS.md", "AI_USAGE.md", "RUNBOOK.md", "entrega.yaml",
-            "infra/main.tf", ".git/HEAD", ".git/config"}
+            "infra/main.tf", "config/pipeline.yaml", ".git/HEAD", ".git/config"}
 REQUIRED |= {"src/__init__.py", "src/batch/pipeline.py", "src/streaming/consumer.py",
              "tools/manage.py", "tools/producer.py", "tools/verificar_entrega.py", "tests/test_setup.py",
              "sql/001_access.sql", "sql/002_clients.sql", "sql/003_consumptions.sql", "sql/004_billing.sql"}
@@ -136,6 +136,9 @@ def collect(root: Path, secrets: list[bytes]) -> list[tuple[str, Path]]:
     names = {name for name, _ in files}
     if not REQUIRED <= names:
         raise PackageError("Faltan archivos obligatorios para construir la entrega.")
+    tracked = set(git(root, "ls-files", "-z").decode("utf-8").split("\0")) - {""}
+    if any(not excluded(path) and path not in names for path in tracked):
+        raise PackageError("Faltan archivos versionados sin una exclusión justificada.")
     return files
 
 

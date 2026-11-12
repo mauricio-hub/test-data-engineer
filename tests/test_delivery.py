@@ -25,7 +25,8 @@ class DeliveryTests(unittest.TestCase):
         self.root = self.base / "source"
         self.root.mkdir()
         shutil.copytree(ROOT / ".git", self.root / ".git")
-        for name in delivery.REQUIRED - {".git/HEAD", ".git/config", "entrega.yaml"}:
+        tracked = set(delivery.git(ROOT, "ls-files", "-z").decode("utf-8").split("\0")) - {""}
+        for name in (delivery.REQUIRED | tracked) - {".git/HEAD", ".git/config", "entrega.yaml"}:
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("fixture\n", encoding="utf-8")
@@ -52,6 +53,10 @@ class DeliveryTests(unittest.TestCase):
             for name in private:
                 self.assertNotIn("candidato_prueba/" + name, names)
             self.assertIn("candidato_prueba/entrega.yaml", names)
+            self.assertIn("candidato_prueba/config/pipeline.yaml", names)
+            tracked = set(delivery.git(self.root, "ls-files", "-z").decode("utf-8").split("\0")) - {""}
+            self.assertTrue(all(delivery.excluded(name) or "candidato_prueba/" + name in names
+                                for name in tracked))
             self.assertIn("candidato_prueba/infra/.terraform.lock.hcl", names)
             self.assertIn("candidato_prueba/out/", names)
             extracted = self.base / "extracted"
@@ -61,6 +66,22 @@ class DeliveryTests(unittest.TestCase):
         delivery.git(restored, "fsck", "--full")
         self.assertEqual((restored / "entrega.yaml").read_bytes(), (self.root / "entrega.yaml").read_bytes())
         self.assertEqual(manage.load_state(self.root), self.state)
+
+    def test_T34_rejects_omitted_tracked_files(self) -> None:
+        """Bloquea omisiones de archivos versionados fuera de las rutas permitidas."""
+        original_git = delivery.git
+
+        def tracked_with_extra(root: Path, *args: str) -> bytes:
+            """Simula un archivo versionado nuevo sin modificar el índice Git."""
+            result = original_git(root, *args)
+            if args == ("ls-files", "-z"):
+                return result + b"additional/runtime.yaml\0"
+            return result
+
+        with patch("tools.package_delivery.git", side_effect=tracked_with_extra):
+            with self.assertRaisesRegex(delivery.PackageError, "versionados"):
+                delivery.build_package(self.root, self.destination, "candidato_prueba")
+        self.assertFalse(self.destination.exists())
 
     def test_T34_rejects_overwrite_traversal_and_linked_sources(self) -> None:
         """Impide destinos peligrosos, sobrescritura, rutas ZIP externas y enlaces de entrada."""
