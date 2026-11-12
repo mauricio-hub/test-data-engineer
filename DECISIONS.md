@@ -44,11 +44,17 @@ Fecha inicial: 2026-11-10. Arquitectura general y S01–S03 autorizados. Ingesta
 **Configuración S01:** `make setup` instala en `.venv/` y genera contraseñas aleatorias nuevas para cada instalación, reutilizadas al reejecutar. `.local/evaluation.json` es administrativo; `.local/ingesta.json` solo contiene la cuenta operativa. `entrega.yaml` se genera para evaluación y no se versiona. La llave PII no se genera: S02 exige un archivo externo explícito. Un volumen con contraseña incompatible debe producir error antes de aplicar permisos; los roles con contraseña existente no se rotan.
 
 ## ADR-006 — Replay Kafka acotado por offsets
-**Estado:** propuesta; cierre y ausencia bloqueados por A07/A08.
+**Estado:** A07/A08 aprobadas por el usuario e implementadas en S05. Integración real pendiente de dependencia Kafka disponible en este entorno.
 **Contexto:** consumidor real con límite de 300 s y archivo finito, sin conteo fijo.
 **Opciones:** consumidor infinito; timeout de inactividad; rango de offsets del replay confirmado.
 **Propuesta:** consumir rango por partición, evaluar retroactividad en orden de llegada y ausencia final en rejilla si se aprueba A07.
 **Razón y consecuencias:** terminación verificable y aislamiento de replays previos; ausencia se conoce al cierre, no en tiempo real. Exige revisar política si el evaluador espera emisión online.
+
+**Concreción S05:** productor original sin cambios; offsets finales antes/después de publicar, cantidad contrastada con registros reales del archivo y consumidor manual sin commits. Una sola fuente de publicación durante el rango; no se promete aislamiento frente a productores externos concurrentes. No se vacían tópicos ni se cambia infraestructura. Kafka conserva cada replay; únicamente la salida es idempotente.
+
+**Reglas:** ausencia al cierre de los 96 intervalos de junio; alertar en el tercero ausente, reiniciar al recuperar y contemplar extremos del día. Retroactividad frente al máximo anterior, sin reducirlo al recibir atrasos. Banda estrictamente superior al máximo. Rejilla/JSON/número/frontera inválidos fallan sin publicar resultados parciales; el mensaje permanece en Kafka y se registra solo partición/offset.
+
+**Operación:** plazo interno 250 s, productor hasta 120 s y supervisor 280 s. Cierre del cliente en finally, sin reenviar stderr del productor. Reutilizar escritor S04 mediante una extracción pequeña en el mismo módulo; batch conserva interfaz/algoritmo. Auditoría stream usa función SQL existente, sin nuevos permisos ni llave PII. No hay transacción distribuida entre Kafka, archivo y auditoría.
 
 ## ADR-007 — Separación modular de S02 con fachadas compatibles
 **Estado:** aprobada por el usuario e implementada para S02; no autoriza S03.

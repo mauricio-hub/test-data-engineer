@@ -1,56 +1,59 @@
-# S05 — Consumo de eventos con finalización automática
+# S05 — Streaming con finalización automática
 
-Estado: propuesto. Fase 5 no autorizada. Depende de S01.
+Estado: plan reducido y A07/A08 aprobados por el usuario. Implementado; integración real pendiente de instalar la dependencia en este entorno.
 
 ## 1. Objetivo
-Leer mediciones desde Redpanda mediante Kafka, generar las tres alertas exigidas y terminar dentro del tiempo disponible.
+Consumir una reproducción finita desde Redpanda, generar las tres alertas exactas y terminar sin dejar procesos colgados.
 
 ## 2. Qué vamos a construir
-- Publicar en `mediciones.raw` con `tools/producer.py` y consumir realmente desde Kafka.
-- Capturar posiciones iniciales y finales por partición, llamadas offsets: delimitan qué mensajes pertenecen a esta reproducción. Tomar el inicio antes de publicar y el final después de confirmar la publicación.
-- Consumir ese rango sin cantidad fija y conservando el orden por frontera.
-- Detectar lecturas retroactivas al recibirlas, sin ordenar previamente por hora de medición. Calcular ausencias al cierre solo si se aprueba A07.
+- Usar el productor original para `mediciones.raw`, capturando offsets por partición antes/después. Crear el tópico solo si falta, sin borrar históricos ni modificar particiones existentes.
+- Comprobar cantidad publicada frente a registros no vacíos del archivo, calculada dinámicamente. Consumir solo ese rango, con asignación manual y sin commits de grupos.
+- Evaluar banda y retroactividad en orden Kafka por frontera. Evaluar ausencias al finalizar con todos los eventos válidos.
+- Publicar `out/alertas.json` completo, logs seguros y auditoría con operación stream. Mantener métricas batch existentes sin sobrescribirlas.
 
 ## 3. Cómo sabemos que funciona
-- **T22:** `kwh > max_kwh` genera `CONSUMO_FUERA_DE_BANDA` con `ts_medicion`. La igualdad no alerta; no se añade alerta por mínimo.
-- **T23:** una fecha/hora menor al máximo previo de esa frontera genera `LECTURA_RETROACTIVA` con la hora de la lectura tardía. La igualdad no alerta y una lectura tardía no reduce el máximo.
-- **T24:** se usa la rejilla de 96 intervalos desde `2026-06-01T00:00:00-05:00`. Tres ausencias consecutivas generan `FRONTERA_SIN_REPORTE` en el tercer intervalo; solo una alerta hasta la recuperación. Se prueban comienzo/final del día, dos ausencias, recuperación y llegada tardía según A07.
-- **T25:** se procesan todos los eventos del archivo, incluidos los 3.795 observados, sin fijar ese número en código. Repetir excluye mensajes de reproducciones anteriores.
-- **T32:** `out/alertas.json` es una lista de objetos con `tipo`, `frontera_id` y `ts` en ISO 8601 con desplazamiento horario explícito. No se repite la combinación `(tipo, frontera_id, ts)`.
-- **T31:** `make stream` termina solo en menos de 300 segundos. Un fallo de Redpanda, del productor o un consumo incompleto devuelve error; no simula éxito mediante una salida vacía.
+- **T22:** kWh estrictamente mayor que máximo; igualdad no alerta, sin regla por mínimo.
+- **T23:** timestamp menor al máximo anterior genera retroactividad; igualdad no. Una lectura tardía no reduce el máximo.
+- **T24/A07:** rejilla de 96 intervalos desde `2026-06-01T00:00:00-05:00`. Alertar exactamente en el tercero ausente, una vez por racha, reiniciando al recuperar una medición. Incluir comienzo/final y presencia tardía. Ejemplos: faltan 00:00/00:15/00:30 → alerta 00:30; faltan 23:15/23:30/23:45 → alerta 23:45.
+- **T25/A08:** procesar todos los eventos reales, sin número fijo; reejecutar excluye reproducciones previas. Idempotencia de alertas, no del histórico Kafka, que crece con cada publicación.
+- **T32:** lista de objetos únicamente con `tipo`, `frontera_id`, `ts`; ISO 8601 con offset. Sin duplicados por esos tres campos, orden estable.
+- **T26:** no escribir mensajes crudos, medidor ni excepciones externas en logs. Validar frontera conocida, JSON, timestamp con zona y en rejilla, y número finito. B4 de batch no se extiende a streaming.
+- Un evento inválido conserva su mensaje en Kafka y registra partición/offset; termina con error sin publicar una lista incompleta.
+- **T31:** plazo interno de 250 s, productor hasta 120 s dentro de ese plazo y comando supervisor hasta 280 s. Timeouts, cierre en finally y captura de stderr del productor. Broker/productor/rango incompleto/publicación fallidos retornan error.
+- Dos escenarios unitarios y una integración real en tópico temporal propio; repetir las 40 pruebas existentes.
 
 ## 4. Qué no haremos todavía
-No prometer procesamiento distribuido exactamente una vez ni alertas inmediatas con A07. Si Bia exige detección inmediata durante la llegada, revisar este spec antes de implementar.
+Sin detección inmediata de ausencia, ejecución continua, procesamiento distribuido exactamente una vez, nuevas tablas, permisos, cifradores o productor alternativo. Sin modificar datos, volúmenes, credenciales, puertos, Makefile ni Compose.
+
+Limitaciones: usar un solo productor durante el rango capturado; conteos detectan interferencia habitual, no autentican pertenencia a la reproducción. No admitir eventos fuera de la rejilla definida sin revisar el contrato. Kafka crece por cada reproducción. Publicación y auditoría no forman una transacción conjunta; un fallo administrativo posterior puede dejar archivo completo y retorno de error. La auditoría del fallo necesita PostgreSQL disponible.
 
 ## 5. Decisiones pendientes
-Resolver A07 —ausencias y lecturas tardías— y A08 —cantidad, fechas y aislamiento de reproducciones—. Bloquean el algoritmo de ausencia.
+A07/A08 aprobadas internamente, sin confirmación adicional de Bia. Validar productor/consumidor en Redpanda real y `make stream` local una vez instalada la dependencia. La lectura directa del archivo es referencia del algoritmo, nunca evidencia de consumo Kafka.
 
 ## 6. Referencias técnicas
-- README §4: Parte D, tres reglas de alerta y rejilla; §5: finalización y `out/alertas.json`.
-- Pruebas: T22–T25, T31 y T32.
+README §4 Parte D y C5/E; §5 `make stream` (<300 s) y contrato de `alertas.json`. T22–T26/T31/T32. Dependencia única añadida: [kafka-python 2.3.2](https://pypi.org/project/kafka-python/2.3.2/), la misma biblioteca requerida por el productor original.
 
 ## 7. Archivos y responsabilidades
 
-**Archivos que se crearán:** filas «Crear». **Archivos que se modificarán:** filas «Modificar». El productor existente se reutiliza sin crear una copia.
+**Crear:** filas Crear. **Modificar:** filas Modificar.
 
 | Acción | Ruta exacta | Responsabilidad |
 |---|---|---|
-| Crear | `src/streaming/__init__.py` | Documentar la interfaz mínima de streaming, sin conexiones al importar. |
-| Crear | `src/streaming/consumer.py` | Coordinar productor existente, límites de offsets, consumo Kafka y finalización; delegar reglas de alerta. |
-| Crear | `src/streaming/alerts.py` | Aplicar las tres reglas y mantener estado por frontera sin depender del cliente Kafka. |
-| Crear | `tests/test_streaming.py` | Probar banda, retroactividad, ausencias, recuperación y deduplicación con eventos sintéticos. |
-| Crear | `tests/test_streaming_integration.py` | Verificar reproducción por Kafka real, aislamiento de ejecuciones y salida dentro del tiempo. |
-| Modificar | `tools/manage.py` | Dirigir `stream` al consumidor con el mismo comando Make; no alojar reglas de alerta. |
-| Modificar | `requirements.txt` | Incorporar la dependencia Kafka necesaria para consumidor y productor suministrado, revisando su versión. |
-| Modificar | `src/observability.py` | Añadir eventos y conteos permitidos de streaming sin registrar mensajes crudos. |
-| Modificar | `specs/S05-stream.md` | Registrar política aprobada de ausencias y finalización. |
-| Modificar | `specs/TRACEABILITY.md` | Registrar casos de alerta y evidencia de Kafka real. |
-| Modificar | `DECISIONS.md` | Cerrar ADR-006 con la semántica que se apruebe. |
+| Crear | `src/streaming/__init__.py` | Paquete sin conexiones al importar. |
+| Crear | `src/streaming/alerts.py` | Validación y tres reglas, sin Kafka/SQL. |
+| Crear | `src/streaming/consumer.py` | Maestros, productor, offsets, consumo, cierre, auditoría y salida. |
+| Crear | `tests/test_streaming.py` | Reglas y fallos controlados: dos escenarios. |
+| Crear | `tests/test_streaming_integration.py` | Productor original y Redpanda real dos veces: un escenario. |
+| Modificar | `tools/manage.py` | Dirigir stream al módulo y propagar retorno con timeout. |
+| Modificar | `requirements.txt` | Fijar la única dependencia Kafka. |
+| Modificar | `tests/test_setup.py` | Ampliación autorizada posteriormente: añadir solo kafka-python a la lista esperada. |
+| Modificar | `src/observability.py` | Eventos seguros y operación stream; batch conserva su valor por defecto. |
+| Modificar | `src/quality/reports.py` | Extraer escritor existente a publish_files; publish S04 conserva interfaz y algoritmo. |
+| Modificar | `specs/S05-stream.md` | Alcance y limitaciones. |
+| Modificar | `specs/AMBIGUITIES.md` | Registrar aprobación A07/A08. |
+| Modificar | `specs/TRACEABILITY.md` | Evidencias y comprobaciones pendientes. |
+| Modificar | `DECISIONS.md` | Concretar ADR-006. |
 
-**Responsabilidades y relación:** `consumer.py` invoca el único `tools/producer.py`, recibe mensajes y llama a `alerts.py`. Reutiliza el escritor JSON atómico de `src/quality/reports.py` de S04 y los eventos seguros de `src/observability.py`; no copia esos mecanismos. Si se implementa S05 antes de S04, debe aprobarse otra secuencia o extraer antes ese escritor, no crear uno paralelo.
+**Relación:** consumer llama al productor original, alerts, escritor S04 y auditoría existente. Alerts no importa coordinadores. Sin módulos auxiliares adicionales.
 
-**Restricciones:** no crear `src/streaming/producer.py`, no modificar el productor original ni `data/eventos/mediciones_stream.ndjson`. Conservar tópico `mediciones.raw`, puertos y nombres Make. No cambiar tablas o roles para estas alertas de archivo. Las reglas de alerta no dependen de cifrado, SQL ni del reloj real para decidir el tiempo de medición.
-
-**Pruebas:** `tests/test_streaming.py` cubre T22–T24/T32; `tests/test_streaming_integration.py` cubre T25/T31/T32. `out/alertas.json` se genera durante la ejecución; no se crea como fixture de entrega.
-
-**Decisiones pendientes adicionales:** además de A07/A08, aprobar las interfaces de estado/evento y la dependencia del escritor de S04. La dependencia funcional de S01 se conserva; la organización propuesta añade reutilización de un componente de S04 y requiere confirmar esa secuencia.
+**Pruebas:** integración usa tópico con UUID y elimina exclusivamente ese recurso propio; nunca elimina mediciones.raw. Si falta kafka-python, queda omitida explícitamente, no aprobada; si la dependencia está instalada y Redpanda falla, la prueba falla.

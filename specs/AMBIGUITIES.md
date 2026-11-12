@@ -1,6 +1,6 @@
 # Ambigüedades y propuestas
 
-Este documento separa lo que exige Bia de las interpretaciones que proponemos. A01–A06 fueron aprobadas internamente al validar S03 y autorizar S04; las decisiones de streaming siguen pendientes. A09 y los detalles operativos de A10 se resolvieron al autorizar S02 y S01, respectivamente. Todos los ejemplos son sintéticos; «Frontera A» representa un punto de medición ficticio.
+Este documento separa lo que exige Bia de las interpretaciones que proponemos. A01–A06 fueron aprobadas internamente al validar S03 y autorizar S04; A07/A08 fueron aprobadas al autorizar S05. A09 y los detalles operativos de A10 se resolvieron al autorizar S02 y S01, respectivamente. Todos los ejemplos son sintéticos; «Frontera A» representa un punto de medición ficticio.
 
 Las referencias corresponden al [README de Bia](../README.md). Aprobar una interpretación internamente no confirma que coincida con el resultado esperado por el evaluador. En los puntos marcados «Requiere consulta a Bia» recomendamos solicitar esa aclaración antes de implementar; no enviaremos consultas sin autorización. Si no hay respuesta, deberá quedar registrada la interpretación que apruebes y el riesgo asumido.
 
@@ -135,7 +135,7 @@ Alertar mientras llegan eventos exige una política de espera y de tratamiento d
 Calcular las ausencias con todas las mediciones de la reproducción acotada, sobre los 96 intervalos. Emitir una alerta en el tercero de cada racha de ausencias, también al final del día. Una medición en la rejilla termina la racha. Detectar retroactividad al llegar cada evento, comparándolo con la mayor hora ya procesada para esa frontera, sin reducir ese máximo ante lecturas tardías. Esta propuesta espera al cierre y no promete alertas inmediatas.
 
 **Estado:**
-Requiere consulta a Bia, especialmente sobre emisión inmediata; pendiente también de aprobación humana antes de S05.
+Aprobada internamente por el usuario para S05: ausencias al cierre, rejilla de junio, máximo temporal persistido en memoria y rango de offsets por reproducción. No consta confirmación adicional de Bia.
 
 ### A08 — ¿Qué cantidad de eventos y fecha gobiernan la reproducción?
 
@@ -154,7 +154,7 @@ Usar cantidades fijas puede perder eventos o dejar el consumidor esperando. Leer
 Procesar todos los eventos reales, sin cantidad fija, y usar la rejilla de junio; interpretar mayo como ejemplo de formato. Capturar las posiciones iniciales y finales por partición de Kafka —los llamados offsets— de cada reproducción y consumir solo ese rango para no mezclar ejecuciones previas.
 
 **Estado:**
-Pendiente de aprobación humana antes de S05. La política de ausencias asociada sigue requiriendo consulta a Bia en A07.
+Aprobada internamente por el usuario para S05: ausencias al cierre, rejilla de junio, máximo temporal persistido en memoria y rango de offsets por reproducción. No consta confirmación adicional de Bia.
 
 ### A09 — ¿Qué columnas protegemos y cómo contamos clientes con PII?
 

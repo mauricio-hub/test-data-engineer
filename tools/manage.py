@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preparación local de S01. No lee data/ ni genera una llave de cifrado PII."""
+"""Prepara el entorno y dirige comandos al pipeline, sin generar una llave PII."""
 from __future__ import annotations
 
 import argparse
@@ -105,9 +105,9 @@ def prepare(root: Path = ROOT) -> dict:
         "candidato": candidate,
         "postgres": {"host": state["host"], "port": state["port"], "database": state["database"],
                      "superusuario": state["superusuario"], "roles": {r: state[r] for r in ROLES}},
-        "objetos": {"tabla_consumos": "TODO", "tabla_clientes": "core.clientes", "vista_analytics": "analytics.v_clientes",
+        "objetos": {"tabla_consumos": "core.fact_consumo_horario", "tabla_clientes": "core.clientes", "vista_analytics": "analytics.v_consumo_mensual",
                     "tabla_auditoria": "audit.runs"},
-        "no_implementado": ["S03-S07 pendientes de autorización e implementación"],
+        "no_implementado": ["S05-S07 pendientes de autorización e implementación"],
     }
     private_write(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     return state
@@ -168,6 +168,10 @@ def up() -> None:
     run_checked(psql, "Preparación SQL", input_text=bootstrap_sql(state))
     run_checked(psql, "Preparación de privacidad S02",
                 input_text=(ROOT / "sql/002_clients.sql").read_text(encoding="utf-8"))
+    run_checked(psql, "Preparación de consumos S03",
+                input_text=(ROOT / "sql/003_consumptions.sql").read_text(encoding="utf-8"))
+    run_checked(psql, "Preparación de facturación y reportes S04",
+                input_text=(ROOT / "sql/004_billing.sql").read_text(encoding="utf-8"))
     for name, user in ROLES.items():
         check_role = (f"\\setenv PGPASSWORD '{state[name]['password']}'\n"
                       f"\\connect bia_datos {user} 127.0.0.1 5432\nSELECT current_user;\n")
@@ -187,6 +191,12 @@ def main() -> int:
             print("Credenciales y manifiesto locales preparados; no se generó llave PII.")
         elif args.command == "up":
             up()
+        elif args.command == "run":
+            return subprocess.run([sys.executable, "-m", "src.batch.pipeline"], cwd=ROOT,
+                                  timeout=900, check=False).returncode
+        elif args.command == "stream":
+            return subprocess.run([sys.executable, "-m", "src.streaming.consumer"], cwd=ROOT,
+                                  timeout=280, check=False).returncode
         elif args.command == "down":
             load_state()
             run_checked(compose("down"), "Detención de servicios")

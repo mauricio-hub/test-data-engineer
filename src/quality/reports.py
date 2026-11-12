@@ -83,6 +83,11 @@ def publish(directory: Path, monthly: str, quality: dict, metrics: dict) -> None
     documents = {"consumo_mensual.csv": monthly,
                  "dq_report.json": json.dumps(quality, ensure_ascii=True, indent=2, allow_nan=False) + "\n",
                  "metrics.json": json.dumps(metrics, ensure_ascii=True, indent=2, allow_nan=False) + "\n"}
+    publish_files(directory, documents)
+
+
+def publish_files(directory: Path, documents: dict[str, str]) -> None:
+    """Publica documentos de nombres internos, reutilizando la escritura completa de S04."""
     directory.mkdir(parents=True, exist_ok=True)
     staged = []
     try:

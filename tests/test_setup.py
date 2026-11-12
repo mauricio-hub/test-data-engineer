@@ -98,7 +98,7 @@ class SetupTests(unittest.TestCase):
     def test_runtime_has_only_required_dependencies(self):
         lines = (manage.ROOT / "requirements.txt").read_text().splitlines()
         packages = [line.split("==")[0].lower() for line in lines if line and not line.startswith("#")]
-        self.assertEqual(set(packages), {"pyyaml", "psycopg2-binary", "cryptography"})
+        self.assertEqual(set(packages), {"pyyaml", "psycopg2-binary", "cryptography", "kafka-python"})
 
     def test_redpanda_healthcheck_uses_admin_api_without_watch(self):
         import yaml

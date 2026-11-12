@@ -5,9 +5,21 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-def record_run(cursor: Any, run_id: str, read: int, loaded: int, result: str, *, rejected: int = 0) -> None:
+def record_run(cursor: Any, run_id: str, read: int, loaded: int, result: str, *, rejected: int = 0,
+               operation: str = "batch") -> None:
     """Añade auditoría con el cursor del llamador, sin confirmar su transacción."""
-    cursor.execute("SELECT audit.record_run(%s,'batch',%s,%s,%s,%s)", (run_id, read, loaded, rejected, result))
+    if operation not in ("batch", "stream"):
+        raise ValueError("Operación de auditoría no admitida.")
+    cursor.execute("SELECT audit.record_run(%s,%s,%s,%s,%s,%s)", (run_id, operation, read, loaded, rejected, result))
+
+
+def stream_event(*, consumed: int, counts: dict[str, int], duration: float,
+                 reason: str | None = None, partition: int | None = None, offset: int | None = None) -> dict:
+    """Construye un evento de streaming con conteos y ubicación técnica, sin mensajes crudos."""
+    return {"event": "stream_failed" if reason else "stream_completed",
+            "timestamp": datetime.now(timezone.utc).isoformat(), "eventos_consumidos": consumed,
+            "alertas_por_tipo": counts, "duration_seconds": round(duration, 3),
+            "reason": reason, "partition": partition, "offset": offset}
 
 
 

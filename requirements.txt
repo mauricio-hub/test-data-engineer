@@ -5,3 +5,5 @@ PyYAML==6.0.3
 psycopg2-binary==2.9.13
 # S02: cifrado autenticado Fernet; nunca se implementan primitivas propias.
 cryptography==50.0.2
+# S05: cliente utilizado también por el productor original de Bia.
+kafka-python==2.3.2
