@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepara el entorno y dirige comandos al pipeline, sin generar una llave PII."""
+"""Prepara credenciales y llave PII de forma segura y dirige los comandos al pipeline."""
 from __future__ import annotations
 
 import argparse
@@ -168,8 +168,9 @@ def setup() -> None:
     run_checked([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--retries", "0",
                  "--timeout", "20", "-r", str(ROOT / "requirements.txt")], "Instalación de dependencias")
     # Ejecutar con el entorno que ya tiene PyYAML para preservar campos humanos.
+    run_checked([str(python), "-m", "tools.manage", "initialize-key"], "Preparación segura de llave PII")
     run_checked([str(python), str(ROOT / "tools/manage.py"), "prepare"], "Preparación de credenciales")
-    print("setup: entorno preparado; credenciales locales generadas o conservadas, sin llave PII.")
+    print("setup: entorno preparado; credenciales y llave PII configuradas sin reemplazar secretos existentes.")
 
 
 def up() -> None:
@@ -200,11 +201,18 @@ def up() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("setup", "prepare", "up", "down", "run", "stream", "clean"))
+    parser.add_argument("command", choices=("setup", "prepare", "initialize-key", "up", "down", "run", "stream", "clean"))
     args = parser.parse_args()
     try:
         if args.command == "setup":
             setup()
+        elif args.command == "initialize-key":
+            from src.security.keys import initialize_key
+            from src.security import PrivacyError
+            try:
+                initialize_key(ROOT)
+            except PrivacyError as error:
+                raise SetupError(str(error)) from None
         elif args.command == "prepare":
             prepare()
             print("Credenciales y manifiesto locales preparados; no se generó llave PII.")

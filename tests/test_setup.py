@@ -14,8 +14,13 @@ class SetupTests(unittest.TestCase):
     def test_setup_preserves_manifest_and_does_not_restore_obsolete_status(self) -> None:
         """Comprueba el recorrido setup/prepare sin instalar ni rotar secretos de la instalación."""
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            with patch.dict(os.environ, {"PG_PORT": "55432"}):
+            root = Path(directory) / "repo"
+            root.mkdir()
+            from cryptography.fernet import Fernet
+            key = Path(directory) / "explicit.key"
+            key.write_bytes(Fernet.generate_key())
+            key.chmod(0o600)
+            with patch.dict(os.environ, {"PG_PORT": "55432", "BIA_PII_KEY_FILE": str(key)}):
                 original = manage.prepare(root)
                 manifest = json.loads((root / "entrega.yaml").read_text(encoding="utf-8"))
                 manifest["candidato"] = {"nombre_completo": "Candidato sintético", "email": "example.invalid", "horas_invertidas": 12}
@@ -32,12 +37,17 @@ class SetupTests(unittest.TestCase):
                     """Ejecuta únicamente prepare en el directorio sintético al delegar setup."""
                     if command[-1] == "prepare":
                         manage.prepare(root)
+                    elif command[-1] == "initialize-key":
+                        from src.security.keys import initialize_key
+                        initialize_key(root)
 
                 with patch.object(manage, "ROOT", root), patch.object(manage, "run_checked", side_effect=checked) as runner, \
                      patch("tools.manage.secrets.token_hex", side_effect=AssertionError("No rotar")):
                     manage.setup()
                     manage.setup()
-                self.assertEqual(runner.call_count, 4)
+                self.assertEqual(runner.call_count, 6)
+                self.assertEqual([call.args[0][-1] for call in runner.call_args_list][1:3],
+                                 ["initialize-key", "prepare"])
                 after = json.loads((root / "entrega.yaml").read_text(encoding="utf-8"))
                 self.assertEqual(after["no_implementado"], ["Limitación sintética declarada"])
                 self.assertEqual(after["objetos"], manifest["objetos"])

@@ -185,3 +185,37 @@ class StreamingTests(unittest.TestCase):
             self.assertEqual(command.call_args.kwargs["timeout"], 280)
             command.return_value.returncode = 1
             self.assertEqual(manage.main(), 1)
+
+    def test_configurable_connections_preserve_official_defaults_and_audit(self) -> None:
+        """Usa conexiones simuladas: conserva defaults y solo audita en la conexión elegida."""
+        alerts = [{"tipo": "CONSUMO_FUERA_DE_BANDA", "frontera_id": FRONTIER,
+                   "ts": DAY_START.isoformat()}]
+        with tempfile.TemporaryDirectory() as directory:
+            for mode in ("official", "demo"):
+                folder = Path(directory) / mode
+                connection = MagicMock()
+                factory = MagicMock(return_value=connection)
+                with self.subTest(mode=mode), \
+                     patch("src.streaming.consumer.connect_operational", return_value=connection) as default, \
+                     patch("src.streaming.consumer.replay", return_value=(alerts, 1)) as replay_call, \
+                     redirect_stdout(io.StringIO()):
+                    kwargs = {} if mode == "official" else {
+                        "connection_factory": factory, "bootstrap": "127.0.0.1:19092"}
+                    self.assertEqual(main(output=folder, log_path=folder / "pipeline.log", **kwargs), 0)
+                    first = (folder / "alertas.json").read_bytes()
+                    self.assertEqual(main(output=folder, log_path=folder / "pipeline.log", **kwargs), 0)
+                    self.assertEqual(first, (folder / "alertas.json").read_bytes())
+                    if mode == "official":
+                        self.assertEqual(replay_call.call_args_list, [call(), call()])
+                        self.assertEqual(default.call_count, 2)
+                        factory.assert_not_called()
+                    else:
+                        self.assertEqual(replay_call.call_args_list,
+                                         [call(bootstrap="127.0.0.1:19092"), call(bootstrap="127.0.0.1:19092")])
+                        default.assert_not_called()
+                        self.assertEqual(factory.call_count, 2)
+                    statements = connection.cursor.return_value.__enter__.return_value.execute.call_args_list
+                    self.assertEqual(len(statements), 2)
+                    self.assertTrue(all(c.args[0].startswith("SELECT audit.record_run(") for c in statements))
+                    self.assertEqual(connection.commit.call_count, 2)
+                    self.assertEqual(connection.close.call_count, 2)

@@ -467,7 +467,6 @@ Requisitos: Python >=3.11 (validado con 3.12), GNU Make, Docker con motor Linux 
 ```powershell
 make setup
 make up
-$env:BIA_PII_KEY_FILE = Read-Host 'Ruta de la llave externa existente'
 make run
 make run
 make stream
@@ -476,7 +475,11 @@ make verificar
 make down
 ```
 
-`make setup` prepara `.venv/` y credenciales locales; no genera la llave PII. Para una instalación nueva, seguir la creación explícita y custodia de llave de [docs/S02.md](docs/S02.md). Una llave usada no se sustituye para resolver errores. La llave y las credenciales no se imprimen ni se incluyen en Git. El manifiesto local de evaluación se trata por separado en S07.
+`make setup` prepara `.venv/`, credenciales locales y una llave Fernet persistente fuera del repositorio. En una instalación nueva no necesitas crear la llave ni configurar variables: se guarda en `%LOCALAPPDATA%\BiaEnergySecrets\pii.fernet.key` (Windows), o `${XDG_DATA_HOME:-~/.local/share}/BiaEnergySecrets/pii.fernet.key` (Linux). Docker debe estar disponible para comprobar que no hay almacenamiento anterior antes de crearla.
+
+Las llaves existentes se validan y reutilizan: nunca se reemplazan. **Conserva una copia segura de la llave para descifrar los datos existentes.** Si falta y hay configuración local, contenedores o volúmenes previos, setup se detiene; también falla si no puede comprobar Docker. Este bloqueo es conservador, incluso si la base pudiera estar vacía. Recupera la llave original; no borres datos ni generes otra para evitar el error. `make run` solo lee la llave, nunca la crea.
+
+Para una configuración explícita o de producción, `BIA_PII_KEY_FILE` conserva prioridad y debe señalar una llave existente fuera del repositorio; si su ruta es inválida no se utiliza otra silenciosamente. Detalles: [docs/S02.md](docs/S02.md). Llaves y credenciales no se imprimen ni se incluyen en Git. El manifiesto local de evaluación se trata por separado en S07.
 
 La cuenta operativa carga datos; analista consulta vistas sin PII y auditor consulta `audit.runs`. Consultar [SECURITY.md](SECURITY.md) para los permisos y controles verificables.
 
@@ -490,9 +493,11 @@ La cuenta operativa carga datos; analista consulta vistas sin PII y auditor cons
 
 Validación comunicada por el responsable en Windows: **43 pruebas aprobadas**, **3.795 eventos y 33 alertas** (22 de banda, 6 de ausencia, 5 retroactivas), con salidas idénticas en reejecuciones. Son resultados observados, no cantidades fijadas en el algoritmo ni una certificación del evaluador.
 
+La revisión posterior ejecutó **51 pruebas aisladas de seguridad**, todas aprobadas, y comprobó permisos mediante consultas de solo lectura en PostgreSQL demo. El responsable también validó batch, idempotencia y streaming reales en `bia-demo`; instrucciones en [docs/DEMO.md](docs/DEMO.md). Estas pruebas no sustituyen una nueva ejecución del contrato completo sobre la versión final. X2 (secreto heredado) permanece **NO VERIFICADO**: el material original disponible no permite identificarlo; los escaneos satisfactorios no demuestran su revocación.
+
 Una corrección inválida ganadora conserva precedencia y deja hueco; no reaparece una versión antigua. Los componentes de facturación no participan en la suma de consumos. Interpretaciones y límites: [DECISIONS.md](DECISIONS.md), [THREAT_MODEL.md](THREAT_MODEL.md). Recuperación y diagnóstico: [RUNBOOK.md](RUNBOOK.md). Uso real de asistencia IA: [AI_USAGE.md](AI_USAGE.md).
 
-### Terraform y cierre pendiente
+### Terraform y empaquetado
 
 `infra/main.tf` describe S3 privado/versionado, KMS y tres roles por prefijo. **No está desplegado ni integrado con el pipeline.** No crea cómputo, base o broker AWS. Solo validar localmente, sin ejecutar plan/apply:
 
@@ -504,4 +509,4 @@ terraform -chdir=infra validate
 
 El responsable confirmó `terraform -chdir=infra validate` satisfactorio en Windows con Terraform 1.17.1. `infra/.terraform.lock.hcl` está generado y versionado. No se desplegaron recursos; esta validación no demuestra permisos efectivos AWS. La ejecución final de fmt/validate se registra aparte, sin afirmar comandos que no se ejecutaron aquí.
 
-S07 corrige el generador: conserva candidato, objetos y credenciales, retira solo declaraciones obsoletas y respeta faltantes concretos. Aún faltan los datos del candidato y la validación final antes de autorizar el ZIP. Tras ese cierre, `python tools/package_delivery.py --name apellido_nombre --destination dist` construye un paquete nuevo con manifiesto e historial Git; no sobrescribe archivos ni crea commits. El manifiesto debe pasar `make verificar` antes de empaquetar: el empaquetador usa biblioteca estándar y no valida semánticamente YAML. Excluye originales, entornos, `.local/`, llaves, logs, volúmenes, estados/cachés Terraform y videos; incluye el lockfile y `out/` vacío. Video y ZIP definitivos siguen pendientes.
+S07 corrige el generador: conserva candidato, objetos y credenciales, retira solo declaraciones obsoletas y respeta faltantes concretos. `python tools/package_delivery.py --name apellido_nombre --destination dist` construye un paquete nuevo con manifiesto e historial Git; no sobrescribe archivos ni crea commits. Completar candidato y horas reales, incorporar los cambios revisados al historial y ejecutar `make verificar` antes de empaquetar: el empaquetador usa biblioteca estándar y no valida semánticamente YAML. Excluye originales, entornos, `.local/`, llaves, logs, volúmenes, estados/cachés Terraform y videos; incluye el lockfile y `out/` vacío. `entrega.yaml` contiene las credenciales locales efímeras exigidas por la evaluación: es la única excepción de inclusión y nunca contiene la llave PII.

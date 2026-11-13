@@ -7,7 +7,6 @@ Desde la raíz del repositorio, con Python >=3.11, GNU Make y Docker Compose v2:
 ```powershell
 make setup
 make up
-# BIA_PII_KEY_FILE debe estar configurada con la llave externa existente.
 make run
 make run
 make stream
@@ -16,7 +15,7 @@ make verificar
 make down
 ```
 
-`make setup` no genera la llave PII; no sustituir una llave usada para datos existentes. Configurar la variable sin imprimir su contenido ni publicar la ubicación privada. En PowerShell puede asignarse desde una ruta elegida por el operador: `$env:BIA_PII_KEY_FILE = Read-Host 'Ruta de la llave externa existente'`. Custodiar su ACL; para una instalación nueva usar el procedimiento explícito de [docs/S02.md](docs/S02.md), nunca regenerarla para resolver un error de descifrado.
+`make setup` configura automáticamente una llave externa persistente solo si no existe evidencia de instalación previa y Docker permite comprobarlo. Las cargas la leen sin variables manuales. Si falta con estado o volúmenes anteriores, detenerse y restaurar la original: nunca regenerarla para resolver un error de descifrado. `BIA_PII_KEY_FILE` permite seleccionar explícitamente una llave existente. Rutas, permisos y recuperación: [docs/S02.md](docs/S02.md).
 
 PostgreSQL local: `127.0.0.1:55432`; Kafka: `127.0.0.1:9092`. Salidas: CSV mensual, DQ, métricas y alertas en `out/`; logs JSON en `logs/pipeline.log`. Límites: batch 900 s, streaming 300 s. Validación confirmada en Windows: 43 pruebas; streaming 3.795 eventos y 33 alertas (22 banda, 6 ausencia, 5 retroactividad). Son resultados del paquete original, no constantes del algoritmo.
 

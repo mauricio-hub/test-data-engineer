@@ -1,13 +1,12 @@
-"""Cifrado autenticado de valores y carga explícita de la llave externa."""
+"""Cifrado autenticado de valores y lectura de llaves externas persistentes."""
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-import stat
 
 from src import ROOT
 from src.security import PrivacyError
+from src.security.keys import load_key
 
 
 class Cipher:
@@ -25,26 +24,9 @@ class Cipher:
             raise PrivacyError("key_invalid") from None
 
     @classmethod
-    def from_env(cls, root: Path = ROOT) -> "Cipher":
-        """Lee la llave externa configurada y conserva los controles de ubicación y permisos."""
-        location = os.environ.get("BIA_PII_KEY_FILE")
-        if not location:
-            raise PrivacyError("key_missing")
-        try:
-            path = Path(location).resolve(strict=True)
-            if not path.is_file() or path.is_relative_to(root.resolve()):
-                raise ValueError
-            if os.name != "nt" and stat.S_IMODE(path.stat().st_mode) & 0o077:
-                raise ValueError
-            with path.open("rb") as handle:
-                key = handle.read(129).strip()
-            if len(key) != 44:
-                raise ValueError
-            return cls(key)
-        except PrivacyError:
-            raise
-        except Exception:
-            raise PrivacyError("key_invalid") from None
+    def from_env(cls, root: Path = ROOT, scope: str = "evaluation") -> "Cipher":
+        """Lee la llave explícita o persistente; los comandos de carga nunca generan llaves."""
+        return cls(load_key(root, scope))
 
     def seal(self, value: str, context: str) -> str:
         """Cifra un texto y su contexto con el formato autenticado existente."""

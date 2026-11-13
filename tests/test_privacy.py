@@ -124,7 +124,8 @@ class PrivacyTests(unittest.TestCase):
 
     def test_missing_invalid_or_in_repository_key_never_generates_key(self) -> None:
         """Rechaza llaves ausentes, inválidas o internas sin crear una de sustitución."""
-        with patch.dict(os.environ):
+        with tempfile.TemporaryDirectory() as missing, patch.dict(os.environ), \
+             patch("src.security.keys.key_path", return_value=Path(missing) / "absent.key"):
             os.environ.pop('BIA_PII_KEY_FILE', None)
             with self.assertRaises(PrivacyError) as caught:
                 Cipher.from_env()
@@ -197,7 +198,8 @@ class PrivacyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ):
             os.environ.pop("BIA_PII_KEY_FILE", None)
             output = io.StringIO()
-            with patch("src.client_service.connect_operational") as connect, redirect_stdout(output):
+            with patch("src.security.keys.key_path", return_value=Path(directory) / "absent.key"), \
+                 patch("src.client_service.connect_operational") as connect, redirect_stdout(output):
                 self.assertEqual(clients.main(log_path=Path(directory) / "pipeline.log"), 1)
             connect.assert_not_called()
             self.assertEqual(json.loads(output.getvalue())["reason"], "key_missing")

@@ -30,7 +30,7 @@ A09 resuelta para esta implementación: todos los textos del maestro se clasific
 
 Se eligió Fernet de `cryptography`, formato `fernet:v1:` con cliente/columna dentro del contenido autenticado. Correos, celulares colombianos y números de documento se detectan con reglas conservadoras; las observaciones enmascaradas siguen cifradas. Una clasificación incompleta, una degradación sensible o una columna técnica reclasificada sin soporte bloquean la carga.
 
-La llave debe configurarse explícitamente mediante `BIA_PII_KEY_FILE`, fuera del repositorio. No se genera automáticamente. Instrucciones y límites de validación: [docs/S02.md](../docs/S02.md).
+La llave se conserva fuera del repositorio: setup puede prepararla solo en una instalación nueva comprobada; nunca reemplaza una existente. `BIA_PII_KEY_FILE` conserva prioridad para configuración explícita. Las cargas no generan llaves y demo tiene su propia ubicación predeterminada. Instrucciones y límites de validación: [docs/S02.md](../docs/S02.md).
 
 ## 6. Referencias técnicas
 - README §4: B7 y C1–C4; §9: criterios eliminatorios.

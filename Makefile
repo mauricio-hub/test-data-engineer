@@ -38,3 +38,13 @@ clean:
 
 verificar:
 	@"$(VENV_PYTHON)" tools/verificar_entrega.py
+
+.PHONY: demo-reset demo-run demo-stream
+demo-reset:
+	@"$(VENV_PYTHON)" -m tools.demo reset --confirm "$(CONFIRM)"
+
+demo-run:
+	@"$(VENV_PYTHON)" -m tools.demo run
+
+demo-stream:
+	@"$(VENV_PYTHON)" -m tools.demo stream

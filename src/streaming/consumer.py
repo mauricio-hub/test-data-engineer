@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 import sys
 from time import monotonic, sleep
-from typing import Any
+from typing import Any, Callable
 import uuid
 
 from src import ROOT
@@ -179,14 +179,15 @@ def replay(*, source: Path = ROOT / "data", topic: str = "mediciones.raw",
                 admin.close()
 
 
-def main(*, output: Path = ROOT / "out", log_path: Path = ROOT / "logs/pipeline.log") -> int:
+def main(*, output: Path = ROOT / "out", log_path: Path = ROOT / "logs/pipeline.log",
+         connection_factory: Callable[[], Any] | None = None, bootstrap: str | None = None) -> int:
     """Ejecuta streaming, audita su resultado y escribe solo conteos/códigos seguros."""
     start, run_id = monotonic(), str(uuid.uuid4())
     consumed, counts, error = 0, dict.fromkeys(TYPES, 0), None
     try:
-        with closing(connect_operational()) as connection:
+        with closing((connection_factory or connect_operational)()) as connection:
             try:
-                alerts, consumed = replay()
+                alerts, consumed = replay() if bootstrap is None else replay(bootstrap=bootstrap)
                 counts.update(Counter(item["tipo"] for item in alerts))
                 try:
                     publish_files(output, {"alertas.json": json.dumps(alerts, ensure_ascii=True, indent=2) + "\n"})

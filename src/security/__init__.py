@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 MESSAGES = {
-    "key_missing": "Configure BIA_PII_KEY_FILE con una llave externa al repositorio.",
+    "key_missing": "Falta la llave PII. Prepare una instalación nueva con setup o restaure la llave existente; BIA_PII_KEY_FILE permite indicar su ruta.",
+    "key_initialization_blocked": "No se creó la llave: hay una instalación previa o no pudo comprobarse su ausencia. Restaure la llave existente y revise Docker.",
     "key_invalid": "La llave PII no es válida o no tiene protección adecuada.",
     "cipher_invalid": "No se pudo verificar el dato cifrado; revise la llave y la integridad.",
     "classification_invalid": "La clasificación no cubre el modelo o permite una protección insuficiente.",
